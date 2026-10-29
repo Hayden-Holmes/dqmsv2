@@ -169,5 +169,5 @@ def test_cli_keygen_produces_matching_hash(capsys):
     assert run("keygen", "--name", "airflow", "--sources", "bigquery://p/*") == 0
     captured = capsys.readouterr()
     key = next(line.strip() for line in captured.err.splitlines() if line.strip().startswith("dqms_"))
-    entry = yaml.safe_load(captured.out.split("\n\n", 1)[1])["keys"][0]
+    entry = yaml.safe_load(captured.out)["keys"][0]  # stdout alone is a valid key file
     assert entry["sha256"] == hash_key(key) and entry["sources"] == ["bigquery://p/*"] and key not in captured.out

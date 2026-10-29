@@ -81,7 +81,7 @@ def _keygen(args: argparse.Namespace) -> int:
     key, digest = generate_key()
     entry = {"name": args.name, "sha256": digest, "sources": args.sources}
     print(f"API key (shown once; give it to the caller via a secret manager):\n  {key}\n", file=sys.stderr)
-    print("Add to the file named by DQMS_AUTH_FILE:\n")
+    print("Key-file entry below (stdout). Save it, or append the entries under one `keys:`, as the file named by DQMS_AUTH_FILE.", file=sys.stderr)
     print("keys:\n  - " + "\n    ".join(f"{k}: {json.dumps(v)}" for k, v in entry.items()))
     return EXIT_OK
 

@@ -38,7 +38,7 @@ class JobFailed(DqmsError):
 
 class DqmsClient:
     def __init__(self, base_url: str, api_key: str | None = None, timeout: float = 60.0, http: httpx.Client | None = None):
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        headers = {"X-API-Key": api_key} if api_key else {}  # not Authorization: proxies often reserve that
         # `http` lets tests (or callers with custom TLS/proxy needs) supply their own transport.
         self._http = http or httpx.Client(base_url=base_url.rstrip("/"), headers=headers, timeout=timeout)
         if http is not None and headers:
