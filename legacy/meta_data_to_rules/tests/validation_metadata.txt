@@ -1,0 +1,22 @@
+{
+  "dataset": "customer",
+
+  "existing_validations": [
+    {
+      "column": "customer_id",
+      "rule": "not_null"
+    },
+    {
+      "column": "customer_id",
+      "rule": "unique"
+    },
+    {
+      "column": "email",
+      "rule": "valid_email"
+    },
+    {
+      "column": "customer_status",
+      "rule": "allowed_values"
+    }
+  ]
+}

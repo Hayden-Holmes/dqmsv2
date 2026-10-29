@@ -1,0 +1,21 @@
+{
+  "entity": "customer",
+
+  "upstream": [
+    {
+      "system": "CRM",
+      "table": "crm_customer"
+    }
+  ],
+
+  "downstream": [
+    {
+      "system": "Analytics",
+      "table": "customer_dimension"
+    },
+    {
+      "system": "Marketing",
+      "table": "campaign_customer"
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dqms · metadata to rules</title>
+<style>
+:root{--bg:#f7f7f5;--panel:#fff;--ink:#1c1c1a;--muted:#6b6b66;--line:#e2e2dd;--accent:#2f5bea;--accent-soft:#e8edfd;
+--err:#b3261e;--err-soft:#fbe9e7;--warn:#8a5a00;--warn-soft:#fdf1d8;--info:#455a64;--info-soft:#e8eef1;--ok:#1b6e3c;--ok-soft:#e3f3e9}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#151514;--panel:#1d1d1b;--ink:#ecece8;--muted:#9a9a93;--line:#323230;
+--accent:#7b9bff;--accent-soft:#232a45;--err:#ff8a80;--err-soft:#3a1f1d;--warn:#f0c35c;--warn-soft:#38300f;--info:#9db4bf;--info-soft:#25303a;--ok:#7fd69c;--ok-soft:#1c3326}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}
+.sub{color:var(--muted);margin:0 0 20px}
+#drop{border:2px dashed var(--line);border-radius:14px;background:var(--panel);padding:40px 20px;text-align:center;cursor:pointer;transition:.15s}
+#drop.over{border-color:var(--accent);background:var(--accent-soft)}
+#drop strong{display:block;font-size:17px;margin-bottom:4px}
+#drop span{color:var(--muted);font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+input[type=text],select,input[type=number]{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}
+button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 16px;font:inherit;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+ul.files{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-wrap:wrap;gap:6px}
+ul.files li{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px}
+.badge{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600}
+.error{background:var(--err-soft);color:var(--err)}.warning{background:var(--warn-soft);color:var(--warn)}
+.info{background:var(--info-soft);color:var(--info)}.ok{background:var(--ok-soft);color:var(--ok)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.msg{padding:10px 14px;border-radius:10px;margin-top:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+code{font:12.5px ui-monospace,Menlo,monospace;background:var(--info-soft);padding:1px 5px;border-radius:5px}
+.muted{color:var(--muted);font-size:13px}
+.tbl{overflow-x:auto}
+pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font-size:12.5px}
+#results{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Metadata → validation rules</h1>
+  <p class="sub">Drop in any metadata you have: DDL, JSON, YAML, CSV exports, data contracts, catalog dumps, docs. Aggregate profiling stats are used too if present.</p>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Drop files or click to choose">
+    <strong>Drag &amp; drop files here</strong><span>or click to browse · up to 25 files, 10&nbsp;MB each</span>
+    <input id="picker" type="file" multiple hidden>
+  </div>
+  <ul class="files" id="filelist"></ul>
+
+  <div class="row">
+    <label>Dataset name <input type="text" id="dsname" placeholder="auto-detect"></label>
+    <label>Min confidence <input type="number" id="minconf" min="0" max="1" step="0.05" value="0" style="width:72px"></label>
+    <label><input type="checkbox" id="usellm" checked> Use LLM</label>
+    <button id="go" disabled>Generate rules</button>
+    <button class="ghost" id="clear" disabled>Clear</button>
+    <span class="muted" id="llmnote"></span>
+  </div>
+  <div id="status"></div>
+
+  <section id="results">
+    <h2>What was understood</h2><div class="card" id="docs"></div>
+    <div id="findingswrap"><h2>Findings</h2><div class="card" id="findings"></div></div>
+    <h2>Rules <span class="muted" id="count"></span></h2>
+    <div class="row" style="margin:0 0 10px">
+      <label>Show <select id="tierfilter"><option value="">all tiers</option><option>declared</option><option>documented</option><option>semantic</option><option>observed</option><option>inferred</option></select></label>
+      <button class="ghost" id="dljson">Download JSON</button>
+      <label>SQL <select id="dialect"><option>bigquery</option><option>postgres</option></select></label>
+      <button class="ghost" id="dlsql">Export SQL checks</button>
+    </div>
+    <div class="card tbl"><table id="rules"><thead><tr><th>Column</th><th>Rule</th><th>Tier</th><th>Severity</th><th>Conf.</th><th>Why</th></tr></thead><tbody></tbody></table></div>
+    <pre id="sqlout" style="display:none"></pre>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let files = [], analysis = null;
+
+function el(tag, attrs, ...kids){
+  const n = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs||{})) { if (k==='class') n.className=v; else n.setAttribute(k,v); }
+  for (const kid of kids) n.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  return n;
+}
+const badge = (text, cls) => el('span', {class:'badge '+cls}, text);
+
+fetch('/healthz').then(r=>r.json()).then(h=>{
+  $('llmnote').textContent = h.llm ? 'LLM connected' : 'No LLM configured: only recognizable formats will be parsed';
+  if (!h.llm) $('usellm').checked = false;
+}).catch(()=>{});
+
+function renderFiles(){
+  const ul = $('filelist'); ul.replaceChildren(...files.map(f=>el('li',{},f.name)));
+  $('go').disabled = $('clear').disabled = files.length===0;
+}
+function addFiles(list){ files = files.concat([...list]); renderFiles(); }
+
+const drop = $('drop');
+drop.onclick = () => $('picker').click();
+drop.onkeydown = e => { if (e.key==='Enter'||e.key===' ') $('picker').click(); };
+$('picker').onchange = e => { addFiles(e.target.files); e.target.value=''; };
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+$('clear').onclick = () => { files=[]; renderFiles(); $('results').style.display='none'; $('status').replaceChildren(); };
+
+function status(text, cls){ $('status').replaceChildren(el('div',{class:'msg '+cls},text)); }
+
+$('go').onclick = async () => {
+  const fd = new FormData();
+  files.forEach(f=>fd.append('files', f, f.name));
+  if ($('dsname').value.trim()) fd.append('dataset_name', $('dsname').value.trim());
+  fd.append('min_confidence', $('minconf').value || '0');
+  fd.append('use_llm', $('usellm').checked ? 'true' : 'false');
+  $('go').disabled = true; status('Analyzing…','info');
+  try {
+    const res = await fetch('/v1/analyze', {method:'POST', body: fd});
+    const body = await res.json();
+    if (!res.ok) throw new Error(typeof body.detail==='string' ? body.detail : JSON.stringify(body.detail));
+    analysis = body; $('status').replaceChildren(); render();
+  } catch (e) { status(e.message, 'error'); }
+  finally { $('go').disabled = files.length===0; }
+};
+
+function render(){
+  const a = analysis, rs = a.ruleset;
+  $('results').style.display = 'block';
+  $('docs').replaceChildren(
+    el('p',{}, `Dataset `, el('code',{},rs.dataset), ` · ${a.metadata.columns.length} columns` + (a.profile ? ` · profile of ${a.profile.row_count ?? '?'} rows` : ' · no profile')),
+    ...a.documents.map(d => el('div',{}, badge(d.route, d.route==='unrecognized'||d.route==='rejected' ? 'error' : d.route==='llm' ? 'warning' : 'ok'), ' ', d.name, ' ', el('span',{class:'muted'}, d.detail)))
+  );
+  $('findingswrap').style.display = rs.findings.length ? 'block':'none';
+  $('findings').replaceChildren(...rs.findings.map(f=>el('div',{}, badge(f.kind,'warning'),' ', f.column ? el('code',{},f.column):'', ' ', f.message)));
+  renderRules();
+}
+
+function ruleLabel(r){
+  const p = r.params, c = r.columns.join(', ');
+  switch (r.type) {
+    case 'not_null': return 'Must not be null';
+    case 'unique': return 'Must be unique';
+    case 'composite_unique': return 'Combination must be unique';
+    case 'datatype': return 'Type is '+p.type;
+    case 'length': return 'exact' in p ? `Length is exactly ${p.exact}` : ['min' in p?`min length ${p.min}`:'', 'max' in p?`max length ${p.max}`:''].filter(Boolean).join(', ');
+    case 'accepted_values': return p.values ? 'One of: '+p.values.join(', ') : 'Valid '+p.reference_set+' code';
+    case 'regex': return p.format ? 'Valid '+p.format+' format' : 'Matches '+p.pattern;
+    case 'range': return ['min' in p?`≥ ${p.min}`:'', 'max' in p?`≤ ${p.max}`:''].filter(Boolean).join(' and ');
+    case 'not_future': return 'Not in the future';
+    case 'age_range': return `Implied age ≤ ${p.max_years} years`;
+    case 'compare': return `${r.columns[0]} ${p.operator} ${r.columns[1]}`;
+    case 'foreign_key': return `Exists in ${p.references_table}.${p.references_column}`;
+    default: return r.type;
+  }
+}
+
+function renderRules(){
+  const tier = $('tierfilter').value;
+  const rules = analysis.ruleset.rules.filter(r=>!tier || r.tier===tier);
+  $('count').textContent = `(${rules.length})`;
+  $('rules').tBodies[0].replaceChildren(...rules.map(r=>el('tr',{},
+    el('td',{}, el('code',{}, r.columns.join(' , '))),
+    el('td',{}, ruleLabel(r), r.already_enforced ? el('div',{}, badge('already enforced','ok')) : ''),
+    el('td',{}, r.tier),
+    el('td',{}, badge(r.severity, r.severity)),
+    el('td',{}, r.confidence.toFixed(2)),
+    el('td',{class:'muted'}, r.rationale)
+  )));
+}
+$('tierfilter').onchange = renderRules;
+
+function download(name, text, type){
+  const url = URL.createObjectURL(new Blob([text],{type}));
+  const a = el('a',{href:url,download:name}); document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+$('dljson').onclick = () => download(`${analysis.ruleset.dataset}_rules.json`, JSON.stringify(analysis.ruleset,null,2), 'application/json');
+$('dlsql').onclick = async () => {
+  const res = await fetch('/v1/export/sql',{method:'POST',headers:{'content-type':'application/json'},
+    body: JSON.stringify({metadata:analysis.metadata, ruleset:analysis.ruleset, dialect:$('dialect').value})});
+  const checks = await res.json();
+  const text = checks.map(c => `-- ${c.rule_id}\n` + (c.sql ? c.sql+';' : `-- ${c.note}`)).join('\n\n');
+  const out = $('sqlout'); out.style.display='block'; out.textContent = text;
+};
+</script>
+</body>
+</html>

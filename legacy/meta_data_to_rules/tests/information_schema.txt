@@ -1,0 +1,30 @@
+{
+  "table_name": "customer",
+  "columns": [
+    {
+      "column_name": "customer_id",
+      "data_type": "BIGINT",
+      "is_nullable": false,
+      "is_primary_key": true
+    },
+    {
+      "column_name": "first_name",
+      "data_type": "VARCHAR",
+      "max_length": 100,
+      "is_nullable": false
+    },
+    {
+      "column_name": "last_name",
+      "data_type": "VARCHAR",
+      "max_length": 100,
+      "is_nullable": false
+    },
+    {
+      "column_name": "email",
+      "data_type": "VARCHAR",
+      "max_length": 255,
+      "is_nullable": true,
+      "is_unique": true
+    }
+  ]
+}

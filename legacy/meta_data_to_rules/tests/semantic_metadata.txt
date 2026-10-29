@@ -1,0 +1,24 @@
+{
+  "column_semantics": [
+    {
+      "column": "customer_id",
+      "semantic_type": "identifier"
+    },
+    {
+      "column": "email",
+      "semantic_type": "email_address"
+    },
+    {
+      "column": "country_code",
+      "semantic_type": "iso_country_code"
+    },
+    {
+      "column": "customer_status",
+      "semantic_type": "status"
+    },
+    {
+      "column": "date_of_birth",
+      "semantic_type": "birth_date"
+    }
+  ]
+}
