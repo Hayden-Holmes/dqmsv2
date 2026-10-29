@@ -58,10 +58,10 @@ details summary{cursor:pointer;margin-top:10px}
 <body>
 <main>
   <h1>Metadata → validation rules</h1>
-  <p class="sub">Drop in any metadata you have: DDL, JSON, YAML, CSV exports, data contracts, catalog dumps, docs. Aggregate profiling stats are used too if present.</p>
+  <p class="sub">Drop in metadata (DDL, JSON, YAML, CSV exports, data contracts, catalog dumps), <strong>or data files together with their metadata</strong>. Name each data file after its table (<code>orders.csv</code> goes with the table <code>orders</code>). Data is summarized into statistics in memory; rows are never stored or sent to a model.</p>
 
   <div id="drop" tabindex="0" role="button" aria-label="Drop files or click to choose">
-    <strong>Drag &amp; drop files here</strong><span>or click to browse · up to 25 files, 10&nbsp;MB each</span>
+    <strong>Drag &amp; drop files here</strong><span>metadata, or data + metadata · CSV, TSV, JSONL, Parquet, SQL, JSON, YAML · up to 25 files</span>
     <input id="picker" type="file" multiple hidden>
   </div>
   <ul class="files" id="filelist"></ul>
@@ -85,7 +85,11 @@ details summary{cursor:pointer;margin-top:10px}
     <div class="crumbs" id="crumbs"></div>
     <div class="split">
       <div class="pane">
-        <div class="paneh"><label><input type="checkbox" id="selall"> select all tables shown</label><span class="muted" id="browsenote"></span></div>
+        <div class="paneh">
+          <label><input type="checkbox" id="selall"> select all tables shown</label>
+          <button class="ghost" id="addhere" type="button" disabled title="Add every table under the location you have open">＋ everything here</button>
+        </div>
+        <div class="muted" id="browsenote" style="padding:4px 10px"></div>
         <div id="nodes"></div>
       </div>
       <div class="pane">
@@ -93,9 +97,15 @@ details summary{cursor:pointer;margin-top:10px}
         <ul class="basket" id="basket"></ul>
       </div>
     </div>
+    <div id="plansum" class="muted" style="margin-top:10px"></div>
+    <details><summary class="muted">Filter what folders and datasets add (optional)</summary>
+      <div class="row"><label>Only names matching <input type="text" id="inc" placeholder="orders*, customers" spellcheck="false"></label>
+      <label>Skip names matching <input type="text" id="exc" placeholder="*_tmp, *_backup" spellcheck="false"></label></div>
+      <p class="muted" style="margin:6px 0 0">Wildcards (*) on the table or file name. They apply to the folders, datasets and locations you add with "＋ add all", not to tables you tick one by one.</p>
+    </details>
     <div class="row">
       <label><input type="checkbox" id="doprofile"> Profile data (aggregate statistics only)</label>
-      <button id="gosrc" disabled>Generate rules for selected tables</button>
+      <button id="gosrc" disabled>Generate rules</button>
       <span class="muted" id="caphint"></span>
     </div>
     <details><summary class="muted">Paste table URIs instead</summary>
@@ -107,6 +117,7 @@ details summary{cursor:pointer;margin-top:10px}
 
   <section id="results">
     <div class="row" id="pickerrow" style="display:none"><label>Dataset <select id="datasetpick"></select></label></div>
+    <div id="pairingwrap" style="display:none"><h2>How your files were matched</h2><div class="card" id="pairing"></div></div>
     <h2>What was understood</h2><div class="card" id="docs"></div>
     <div id="findingswrap"><h2>Findings</h2><div class="card" id="findings"></div></div>
     <h2>Rules <span class="muted" id="count"></span></h2>
@@ -159,21 +170,54 @@ $('clear').onclick = () => { files=[]; renderFiles(); $('results').style.display
 
 function status(text, cls){ $('status').replaceChildren(el('div',{class:'msg '+cls},text)); }
 
+// The hosted service accepts about 32 MB per request. Large CSV/TSV/JSONL data files are sent as a sample
+// (the first rows) and marked as such, so the profile is honest about being partial; Parquet cannot be cut.
+const REQUEST_BUDGET = 28 * 1024 * 1024, TEXT_DATA = /\.(csv|tsv|jsonl|ndjson)$/i;
+async function prepareUpload(list){
+  const total = list.reduce((n, f) => n + f.size, 0), truncated = [];
+  if (total <= REQUEST_BUDGET) return {parts: list.map(f => [f, f.name]), truncated};
+  const cuttable = list.filter(f => TEXT_DATA.test(f.name));
+  const fixed = list.filter(f => !cuttable.includes(f)).reduce((n, f) => n + f.size, 0);
+  const room = Math.floor((REQUEST_BUDGET - fixed) / Math.max(1, cuttable.length));
+  if (room < 256 * 1024) throw new Error('These files are too large to upload here. Send a smaller sample, or point the service at the data in cloud storage.');
+  const parts = [];
+  for (const f of list) {
+    if (cuttable.includes(f) && f.size > room) {
+      const head = await f.slice(0, room).text();
+      parts.push([new Blob([head.slice(0, head.lastIndexOf('\n') + 1)]), f.name]);
+      truncated.push(f.name);
+    } else parts.push([f, f.name]);
+  }
+  return {parts, truncated};
+}
+
 $('go').onclick = async () => {
-  const fd = new FormData();
-  files.forEach(f=>fd.append('files', f, f.name));
-  if ($('dsname').value.trim()) fd.append('dataset_name', $('dsname').value.trim());
-  fd.append('min_confidence', $('minconf').value || '0');
-  fd.append('use_llm', $('usellm').checked ? 'true' : 'false');
   $('go').disabled = true; status('Analyzing…','info');
   try {
-    const res = await fetch('/v1/analyze', {method:'POST', body: fd, headers: authHeaders()});
+    const {parts, truncated} = await prepareUpload(files);
+    const fd = new FormData();
+    parts.forEach(([blob, name]) => fd.append('files', blob, name));
+    if (truncated.length) fd.append('truncated', JSON.stringify(truncated));
+    fd.append('min_confidence', $('minconf').value || '0');
+    fd.append('use_llm', $('usellm').checked ? 'true' : 'false');
+    const res = await fetch('/v1/analyze/batch', {method:'POST', body: fd, headers: authHeaders()});
     const body = await res.json();
     if (!res.ok) throw new Error(typeof body.detail==='string' ? body.detail : JSON.stringify(body.detail));
-    $('status').replaceChildren(); showAnalyses([body], []);
+    const notes = body.notes.concat(truncated.map(n => `${n} was large, so a sample of its first rows was profiled`),
+      body.rejected.map(r => `${r.name}: ${r.detail}`));
+    $('status').replaceChildren(); showPairing(body.pairing); showAnalyses(body.analyses, notes);
   } catch (e) { status(e.message, 'error'); }
   finally { $('go').disabled = files.length===0; }
 };
+
+function showPairing(rows){
+  const interesting = rows.some(r => r.data_file);
+  $('pairingwrap').style.display = interesting ? 'block' : 'none';
+  $('pairing').replaceChildren(...rows.map(r => el('div', {},
+    badge(r.data_file ? 'data' : 'metadata only', r.data_file ? 'ok' : 'info'), ' ',
+    el('code', {}, r.table), r.data_file ? ' ← ' : '', r.data_file ? el('code', {}, r.data_file) : '',
+    r.note ? el('span', {class:'muted'}, '  ' + r.note) : '')));
+}
 
 function showAnalyses(list, errors){
   analyses = list; $('pickerrow').style.display = list.length > 1 ? 'flex' : 'none';
@@ -183,9 +227,10 @@ function showAnalyses(list, errors){
 }
 $('datasetpick').onchange = e => { analysis = analyses[+e.target.value]; render(); };
 
-// ---- cloud explorer: browse (names/sizes only), pick tables into a basket, submit them explicitly
-const basket = new Map();      // uri -> display name
-let cap = 50, trail = [], shown = [];
+// ---- cloud explorer: browse (names/sizes only), add tables or whole folders/datasets, submit what is listed
+const basket = new Map();      // uri -> {name, group}; a group is a folder/dataset/location that expands to its tables
+const counts = new Map();      // group uri -> {n, over, msg} (from the dry-run plan; nothing is read)
+let cap = 50, trail = [], shown = [], plan = null, planning = false, timer = null, generation = 0;
 
 async function call(path, body){
   const init = body === undefined ? {headers: authHeaders()}
@@ -197,6 +242,10 @@ async function call(path, body){
 }
 const lastSegment = uri => uri.replace(/\/$/, '').split('/').pop() || uri;
 const fmtBytes = n => n == null ? '' : n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(0) + ' KB' : n < 1073741824 ? (n/1048576).toFixed(1) + ' MB' : (n/1073741824).toFixed(1) + ' GB';
+const globs = id => $(id).value.split(/[,\s]+/).map(x => x.trim()).filter(Boolean);
+const scopeVal = () => ({include: globs('inc'), exclude: globs('exc')});
+const pasted = () => $('sources').value.split('\n').map(s => s.trim()).filter(Boolean);
+const chosen = () => [...new Set([...basket.keys(), ...pasted()])];
 
 async function loadRoots(){
   try {
@@ -222,21 +271,25 @@ function renderCrumbs(){
   const parts = [];
   trail.forEach((t, i) => {
     if (i) parts.push(el('span', {}, '›'));
-    parts.push(el('button', {class:'link', type:'button'}, t.label));
-    parts[parts.length - 1].onclick = () => openUri(t.uri);
+    const b = el('button', {class:'link', type:'button'}, t.label);
+    b.onclick = () => openUri(t.uri);
+    parts.push(b);
   });
   $('crumbs').replaceChildren(...parts);
+  $('addhere').disabled = trail.length === 0;
 }
 function renderNodes(truncated){
   const rows = shown.map(n => {
     if (n.kind === 'container') {
       const open = el('button', {class:'link', type:'button'}, '📁 ' + n.name);
       open.onclick = () => openUri(n.uri);
-      return el('div', {class:'node'}, el('span', {class:'grow'}, open));
+      const add = el('button', {class:'ghost', type:'button', title:'Add every table in ' + n.name}, basket.has(n.uri) ? '✓ added' : '＋ add all');
+      add.onclick = () => { basket.has(n.uri) ? removeItem(n.uri) : addGroup(n.uri, n.name); };
+      return el('div', {class:'node'}, el('span', {class:'grow'}, open), add);
     }
     const box = el('input', {type:'checkbox'});
     box.checked = basket.has(n.uri);
-    box.onchange = () => { box.checked ? basket.set(n.uri, n.name) : basket.delete(n.uri); renderBasket(); syncSelAll(); };
+    box.onchange = () => { box.checked ? addItem(n.uri, n.name) : removeItem(n.uri); };
     const size = [fmtBytes(n.bytes), n.rows != null ? n.rows.toLocaleString() + ' rows' : ''].filter(Boolean).join(' · ');
     return el('div', {class:'node'}, box, el('span', {class:'grow'}, n.name), el('span', {class:'muted'}, size));
   });
@@ -250,37 +303,73 @@ function syncSelAll(){
   $('selall').checked = tables.length > 0 && tables.every(n => basket.has(n.uri));
 }
 $('selall').onchange = e => {
-  shown.filter(n => n.kind === 'dataset').forEach(n => e.target.checked ? basket.set(n.uri, n.name) : basket.delete(n.uri));
-  renderNodes(false); renderBasket();
+  shown.filter(n => n.kind === 'dataset').forEach(n => e.target.checked ? basket.set(n.uri, {name:n.name, group:false}) : basket.delete(n.uri));
+  changed();
 };
-const pasted = () => $('sources').value.split('\n').map(s => s.trim()).filter(Boolean);
-const chosen = () => [...new Set([...basket.keys(), ...pasted()])];
+$('addhere').onclick = () => { const t = trail[trail.length - 1]; if (t) addGroup(t.uri, t.uri); };
+
+function addItem(uri, name){ basket.set(uri, {name, group:false}); changed(); }
+function addGroup(uri, name){ basket.set(uri, {name, group:true}); changed(); }
+function removeItem(uri){ basket.delete(uri); counts.delete(uri); $('sources').value = pasted().filter(x => x !== uri).join('\n'); changed(); }
+function changed(){ renderNodes(false); renderBasket(); schedulePlan(); }
+
+// A dry-run plan (lists names only, reads no data) tells us how many tables each group really holds.
+function schedulePlan(){ planning = true; renderBasket(); clearTimeout(timer); timer = setTimeout(refreshPlan, 350); }
+async function refreshPlan(){
+  const mine = ++generation, sources = chosen();
+  if (!sources.length) { plan = null; planning = false; counts.clear(); return renderBasket(); }
+  try {
+    const groups = [...basket].filter(([, v]) => v.group).map(([u]) => u);
+    const per = await Promise.all(groups.map(u => call('/v1/plan', {sources:[u], scope: scopeVal()}).then(p => [u, p]).catch(e => [u, {error: e.message}])));
+    const total = await call('/v1/plan', {sources, scope: scopeVal()});
+    if (mine !== generation) return;   // a newer change superseded this one
+    per.forEach(([u, p]) => counts.set(u, p.error ? {error: p.error} : {n: p.datasets.length, msg: p.message}));
+    plan = total;
+  } catch (e) { if (mine === generation) plan = {error: e.message}; }
+  if (mine === generation) { planning = false; renderBasket(); }
+}
 
 function renderBasket(){
   const uris = chosen();
-  $('basketcount').textContent = `${uris.length} table${uris.length === 1 ? '' : 's'} selected`;
+  $('basketcount').textContent = `${uris.length} item${uris.length === 1 ? '' : 's'} selected`;
   $('basket').replaceChildren(...uris.map(u => {
+    const item = basket.get(u), group = item && item.group, c = counts.get(u);
     const remove = el('button', {class:'x', type:'button', title:'remove', 'aria-label':'remove ' + u}, '×');
-    remove.onclick = () => { basket.delete(u); $('sources').value = pasted().filter(x => x !== u).join('\n'); renderNodes(false); renderBasket(); };
-    return el('li', {}, el('span', {class:'grow'}, u), remove);
+    remove.onclick = () => removeItem(u);
+    const label = group ? `📁 ${u}  (all tables${c && c.n != null ? ' · ' + c.n : ''}${c && c.error ? ' · ' + c.error : ''})` : u;
+    return el('li', {}, el('span', {class:'grow'}, label), remove);
   }));
-  const over = uris.length > cap;
-  $('caphint').textContent = over ? `limit is ${cap} tables per run; remove ${uris.length - cap}` : `up to ${cap} tables per run`;
-  $('caphint').style.color = over ? 'var(--err)' : '';
-  $('gosrc').disabled = uris.length === 0 || over;
+  let text = '', bad = false;
+  if (!uris.length) text = '';
+  else if (planning) text = 'counting tables…';
+  else if (!plan) text = '';
+  else if (plan.error) { text = plan.error; bad = true; }
+  else {
+    const n = plan.datasets.length, extra = [];
+    if (plan.excluded) extra.push(`${plan.excluded} skipped by your filters`);
+    if (plan.problems && plan.problems.length) extra.push(plan.problems.map(p => p.source + ': ' + p.error).join('; '));
+    text = `${n} table${n === 1 ? '' : 's'} will be analyzed (limit ${plan.limit})` + (extra.length ? ' · ' + extra.join(' · ') : '');
+    if (!plan.within_limit) { text = plan.message; bad = true; }
+    else if (n === 0) { text = 'nothing matches yet' + (extra.length ? ' · ' + extra.join(' · ') : ''); bad = true; }
+  }
+  $('plansum').textContent = text;
+  $('plansum').style.color = bad ? 'var(--err)' : '';
+  $('caphint').textContent = '';
+  $('gosrc').disabled = !uris.length || planning || !plan || !!plan.error || !plan.within_limit || plan.datasets.length === 0;
 }
-$('clearbasket').onclick = () => { basket.clear(); $('sources').value = ''; renderNodes(false); renderBasket(); };
-$('sources').oninput = renderBasket;
+$('clearbasket').onclick = () => { basket.clear(); counts.clear(); $('sources').value = ''; plan = null; changed(); };
+$('sources').oninput = schedulePlan;
+$('inc').oninput = $('exc').oninput = schedulePlan;
 $('open').onclick = () => { const u = $('rooturi').value.trim(); if (u) { trail = []; openUri(u); } };
 $('rooturi').onkeydown = e => { if (e.key === 'Enter') $('open').click(); };
 $('rootsel').onchange = e => { if (e.target.value) { $('rooturi').value = e.target.value; trail = []; openUri(e.target.value); } };
 $('apikey').addEventListener('change', loadRoots);
 
 $('gosrc').onclick = async () => {
-  const sources = chosen();   // exactly the tables you picked: nothing is expanded or added
+  const sources = chosen();   // exactly what is listed; groups expand on the server within the limit shown above
   $('gosrc').disabled = true; status('Submitting…', 'info');
   try {
-    let job = await call('/v1/jobs', {sources, profile:{enabled:$('doprofile').checked}, options:{use_llm:$('usellm').checked}});
+    let job = await call('/v1/jobs', {sources, scope: scopeVal(), profile:{enabled:$('doprofile').checked}, options:{use_llm:$('usellm').checked}});
     while (!['succeeded','partial','failed'].includes(job.status)) {
       status(`${job.status}… ${job.done}/${job.total || '?'} tables`, 'info');
       job = await call(`/v1/jobs/${job.id}?wait=5`);
@@ -289,7 +378,7 @@ $('gosrc').onclick = async () => {
     const errs = job.results.filter(r => r.status === 'error').map(r => `${r.source}: ${r.error}`);
     if (job.error) errs.push(job.error);
     if (!ok.length) throw new Error(errs.join('\n') || 'nothing was analyzed');
-    $('status').replaceChildren(); showAnalyses(ok, errs);
+    $('status').replaceChildren(); $('pairingwrap').style.display = 'none'; showAnalyses(ok, errs);
   } catch (e) { status(e.message, 'error'); }
   finally { renderBasket(); }
 };

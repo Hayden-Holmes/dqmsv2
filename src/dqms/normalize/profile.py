@@ -68,7 +68,8 @@ def normalize_profile(doc: dict[str, Any]) -> Profile:
     row_count = next((int(doc[k]) for k in _ROW_COUNT_KEYS if isinstance(doc.get(k), (int, float))), None)
     entries = doc.get("column_profiles") or doc.get("columns") or []
     columns = [_normalize_column(e, row_count) for e in entries if isinstance(e, dict)]
-    return Profile(row_count=row_count, columns=[c for c in columns if c])
+    table = next((doc[k] for k in ("table", "table_name", "dataset") if isinstance(doc.get(k), str) and doc[k]), None)
+    return Profile(table=table, row_count=row_count, columns=[c for c in columns if c])
 
 
 def _normalize_column(entry: dict[str, Any], row_count: int | None) -> ColumnProfile | None:

@@ -54,6 +54,8 @@ def test_script_never_writes_the_key_into_the_repo_or_leaves_the_key_file():
     assert "mktemp" in text and "trap 'rm -f" in text
     assert "--allow-unauthenticated" in text and "--no-cpu-throttling" in text and "--max-instances 1" in text
     assert "DQMS_LLM_MODE=off" in text
+    # a source build needs the build account to be able to read the uploaded source
+    assert "roles/cloudbuild.builds.builder" in text and "roles/storage.objectViewer" in text
 
 
 def test_logs_carry_the_severity_field_cloud_logging_reads():

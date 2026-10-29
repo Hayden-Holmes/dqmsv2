@@ -104,7 +104,10 @@ def _analyze(args: argparse.Namespace) -> int:
     results: list[Analysis] = []
     failures: list[str] = []
     if files:
-        results.append(runner.files(files))
+        analyses, notes = runner.files(files)
+        results += analyses
+        for note in notes:
+            print(f"NOTE    {note}", file=sys.stderr)
     if sources:
         got, failed = runner.sources(sources)
         results += got
@@ -158,11 +161,14 @@ class _local:
 
         self._scope = ScopeRequest(**{k: v for k, v in scope.items() if v})
 
-    def files(self, paths: list[str]) -> Analysis:
-        from dqms.normalize.files import read_upload
+    def files(self, paths: list[str]):
+        from dqms.batch import analyze_uploads, read_uploads
 
-        docs = [d for p in paths for d in read_upload(Path(p).name, Path(p).read_bytes())]
-        return self._service.analyze_documents(docs, options=self._options)
+        uploads, rejected = read_uploads([(Path(p).name, Path(p).read_bytes()) for p in paths])
+        if not uploads:
+            raise ValueError("; ".join(r.detail for r in rejected) or "no readable files")
+        batch = analyze_uploads(self._service, uploads, self._options)
+        return batch.analyses, batch.notes + [f"{r.name}: {r.detail}" for r in rejected]
 
     def plan(self, sources: list[str]):
         from dqms.scope import plan_scope
@@ -195,8 +201,9 @@ class _remote:
         self._profile, self._options, self._use_llm = profile, options, not args.no_llm
         self._scope = scope
 
-    def files(self, paths: list[str]) -> Analysis:
-        return self._client.analyze_files(paths, use_llm=self._use_llm)
+    def files(self, paths: list[str]):
+        batch = self._client.analyze_batch(paths, use_llm=self._use_llm)
+        return batch.analyses, batch.notes + [f"{r.name}: {r.detail}" for r in batch.rejected]
 
     def plan(self, sources: list[str]):
         return self._client.plan(sources, self._scope["include"], self._scope["exclude"], self._scope["max_datasets"])

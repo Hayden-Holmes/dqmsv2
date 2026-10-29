@@ -87,7 +87,9 @@ class BigQueryConnector:
             metadata.columns.append(
                 Column(
                     name=field.name,
-                    datatype=field.field_type,
+                    # A REPEATED column is an array whatever its element type; treating it as its element
+                    # type makes COUNT(DISTINCT)/LENGTH invalid and fails the whole profiling query.
+                    datatype="ARRAY" if field.mode == "REPEATED" else field.field_type,
                     nullable=False if field.mode == "REQUIRED" else True if field.mode == "NULLABLE" else None,
                     max_length=int(field.max_length) if getattr(field, "max_length", None) else None,
                     description=field.description,
@@ -96,13 +98,16 @@ class BigQueryConnector:
             )
         self._apply_constraints(metadata, getattr(bq_table, "table_constraints", None))
 
-        stats = None
+        stats, warnings = None, []
         if profile.enabled:
-            stats = profile_table(
-                _BigQueryWarehouse(client, self._max_bytes, profile.timeout_s),
-                BIGQUERY, (project, dataset, table), metadata.columns, profile,
-            )
-        return Snapshot(metadata, stats)
+            try:
+                stats = profile_table(
+                    _BigQueryWarehouse(client, self._max_bytes, profile.timeout_s),
+                    BIGQUERY, (project, dataset, table), metadata.columns, profile,
+                )
+            except ConnectorError as exc:  # keep the schema-derived rules rather than losing the table
+                warnings.append(f"profiling failed, so only schema-based rules were generated: {exc}")
+        return Snapshot(metadata, stats, warnings)
 
     def _client(self, project: str):
         if self._client_factory:

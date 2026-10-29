@@ -17,6 +17,7 @@ from typing import Any
 
 import httpx
 
+from dqms.batch import BatchAnalysis
 from dqms.jobs import Job, JobStatus
 from dqms.models import RuleSet
 from dqms.rules.diff import RuleDiff
@@ -101,6 +102,16 @@ class DqmsClient:
         files = [("files", (Path(p).name, Path(p).read_bytes())) for p in paths]
         data = {"use_llm": str(use_llm).lower(), **({"dataset_name": dataset_name} if dataset_name else {})}
         return Analysis.model_validate(self._call("POST", "/v1/analyze", files=files, data=data))
+
+    def analyze_batch(self, paths: list[str | Path], pairs: dict[str, str] | None = None, use_llm: bool = True,
+                      include_values: bool = False) -> BatchAnalysis:
+        """Data files with their metadata (any platform): files are classified by content and paired by name."""
+        import json
+
+        files = [("files", (Path(p).name, Path(p).read_bytes())) for p in paths]
+        data = {"use_llm": str(use_llm).lower(), "include_values": str(include_values).lower(),
+                **({"pairs": json.dumps(pairs)} if pairs else {})}
+        return BatchAnalysis.model_validate(self._call("POST", "/v1/analyze/batch", files=files, data=data))
 
     # ------------------------------- derived ----------------------------- #
 
