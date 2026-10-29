@@ -5,6 +5,8 @@ from conftest import FIXTURES, FakeLLM
 from fastapi.testclient import TestClient
 
 from dqms.api.app import create_app
+from dqms.llm.gateway import LLMMode
+from dqms.auth import Authenticator
 from dqms.emitters.sql import emit_sql_checks
 from dqms.models import Column, Metadata
 from dqms.rules.engine import RuleEngine
@@ -60,12 +62,12 @@ def test_sql_refuses_unsafe_identifiers_and_escapes_literals():
 
 @pytest.fixture
 def client():
-    return TestClient(create_app(llm_from_env=False))
+    return TestClient(create_app(llm_mode=LLMMode.OFF, auth=Authenticator.anonymous()))
 
 
 def test_health(client):
     body = client.get("/healthz").json()
-    assert body["status"] == "ok" and body["llm"] is False and "bigquery" in body["connectors"]
+    assert body["status"] == "ok" and body["llm_mode"] == "off" and {"bigquery", "gs", "snowflake"} <= set(body["schemes"])
 
 
 def test_ui_is_served(client):
@@ -109,7 +111,7 @@ def test_only_unreadable_files_is_a_422(client):
 
 def test_unknown_format_works_through_the_api_when_an_llm_is_present():
     reply = {"metadata": {"name": "orders", "columns": [{"name": "order_id", "nullable": False}]}, "profile": None}
-    client = TestClient(create_app(FakeLLM(reply, {"rules": []})))
+    client = TestClient(create_app(FakeLLM(reply, {"rules": []}), LLMMode.FULL, auth=Authenticator.anonymous()))
     res = client.post("/v1/analyze", files=[("files", ("contract.md", b"orders has order_id which is required"))])
     assert res.status_code == 200
     assert res.json()["documents"][0]["route"] == "llm"
@@ -124,11 +126,9 @@ def test_json_endpoint_and_sql_export_roundtrip(client):
     assert any(c["sql"] and '"public"."customer"' in c["sql"] for c in res.json())
 
 
-def test_unknown_connector_is_a_400(client):
-    res = client.post("/v1/sources/nope/analyze", json={"ref": {}})
-    assert res.status_code == 400 and "available" in res.json()["detail"]
-
-
-def test_bigquery_connector_validates_identifiers(client):
-    res = client.post("/v1/sources/bigquery/analyze", json={"ref": {"project_id": "p", "dataset_id": "d; DROP", "table_id": "t"}})
+def test_malformed_and_unknown_sources_are_rejected_before_any_cloud_call(client):
+    # Anonymous callers have no source access, but bad input is still a clear 400 first.
+    res = client.post("/v1/sources/analyze", json={"source": "not-a-uri"})
+    assert res.status_code == 400 and "not a source URI" in res.json()["detail"]
+    res = client.post("/v1/sources/analyze", json={"source": "gs://b/../etc"})
     assert res.status_code == 400

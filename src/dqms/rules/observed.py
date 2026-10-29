@@ -25,6 +25,7 @@ class ObservedGenerator:
         if profile is None:
             return []
         enough_rows = profile.row_count is not None and profile.row_count >= ctx.min_profile_rows
+        sampled = profile.sampled
         rules: list[Rule] = []
 
         for stats in profile.columns:
@@ -32,19 +33,22 @@ class ObservedGenerator:
             family = type_family(col) if col else "unknown"
             name = col.name if col else stats.column
             n = f"n={profile.row_count}" if profile.row_count is not None else "n=unknown"
+            if sampled:
+                n += ", sampled"
 
             if enough_rows and stats.null_rate == 0:
                 rules.append(
-                    rule(RuleType.NOT_NULL, name, Tier.OBSERVED, CONFIDENCE,
+                    rule(RuleType.NOT_NULL, name, Tier.OBSERVED, 0.4 if sampled else CONFIDENCE,
                          f"No nulls observed in {name}.", [f"profile: null_rate=0 ({n})"])
                 )
-            if enough_rows and _all_distinct(stats, profile.row_count):
+            # A sample can show duplicates but can never prove uniqueness or true extremes.
+            if enough_rows and not sampled and _all_distinct(stats, profile.row_count):
                 rules.append(
                     rule(RuleType.UNIQUE, name, Tier.OBSERVED, CONFIDENCE,
                          f"All observed values of {name} are distinct.", [f"profile: distinct_rate=1 ({n})"])
                 )
 
-            values = _closed_value_set(stats)
+            values = None if sampled else _closed_value_set(stats)
             if values and family in {"string", "unknown"}:
                 rules.append(
                     rule(RuleType.ACCEPTED_VALUES, name, Tier.OBSERVED, CONFIDENCE,
@@ -52,7 +56,7 @@ class ObservedGenerator:
                          [f"profile: values={values}"], values=values)
                 )
 
-            if enough_rows and family == "numeric" and _is_number(stats.min_value) and _is_number(stats.max_value):
+            if enough_rows and not sampled and family == "numeric" and _is_number(stats.min_value) and _is_number(stats.max_value):
                 rules.append(
                     rule(RuleType.RANGE, name, Tier.OBSERVED, 0.4,
                          f"Observed range of {name} is {stats.min_value}..{stats.max_value}.",

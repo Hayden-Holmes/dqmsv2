@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from typing import Any, Protocol
 
@@ -65,15 +64,3 @@ class AzureOpenAIClient:
                     {"role": "user", "content": f"That was not valid JSON ({exc}). Reply with ONLY the JSON object."},
                 ]
         raise ValueError(f"LLM did not return valid JSON after retries: {last_error}")
-
-
-def client_from_env() -> LLMClient | None:
-    """Build a client from environment variables, or None when no LLM is configured.
-
-    DQMS_LLM_BASE_URL   Azure OpenAI v1 endpoint (falls back to BASE_URL)
-    DQMS_LLM_MODEL      deployment name (default: gpt-4.1)
-    """
-    base_url = os.getenv("DQMS_LLM_BASE_URL") or os.getenv("BASE_URL")
-    if not base_url:
-        return None
-    return AzureOpenAIClient(base_url, os.getenv("DQMS_LLM_MODEL", "gpt-4.1"))

@@ -16,6 +16,7 @@ from typing import Any
 import yaml
 
 from dqms.normalize.documents import SourceDoc
+from dqms.normalize.rowdata import ROW_DATA_MESSAGE, metadata_shaped, records_look_like_metadata
 
 MAX_FILE_BYTES = 10 * 1024 * 1024
 
@@ -81,6 +82,10 @@ def _wrap(name: str, loaded: Any) -> list[SourceDoc]:
     if isinstance(loaded, dict):
         return [SourceDoc(name, loaded)]
     if isinstance(loaded, list) and loaded and all(isinstance(x, dict) for x in loaded):
+        # A list of metadata documents is fine; a list of *records* is data and is refused outright,
+        # rather than being split into one "unknown document" per row.
+        if len(loaded) >= 3 and not records_look_like_metadata(list(loaded[0])):
+            raise UnsupportedFile(f"{name}: {ROW_DATA_MESSAGE}")
         return [SourceDoc(f"{name}[{i}]", item) for i, item in enumerate(loaded, start=1)]
     return [SourceDoc(name, json.dumps(loaded, default=str))]
 
@@ -92,6 +97,8 @@ def _from_csv(text: str, delimiter: str) -> dict[str, Any] | str:
         return text
     if not rows or not rows[0]:
         return text
+    if not metadata_shaped([k for k in rows[0] if k]):
+        return text  # records, not a description of columns: never turn row values into columns
     entries = [{(k or "").strip().lower(): _coerce(v) for k, v in row.items() if k} for row in rows]
     entries = [{k: v for k, v in e.items() if v is not None} for e in entries]
     doc: dict[str, Any] = {"columns": entries}

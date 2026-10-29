@@ -13,11 +13,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from dqms.llm.client import LLMClient
+from dqms.llm.gateway import EgressDenied, LLMGateway, Purpose
 from dqms.models import Column, Finding, Metadata, Profile
 from dqms.normalize.documents import merge_metadata
+from dqms.normalize.rowdata import ROW_DATA_MESSAGE, looks_like_row_data
 
 CHUNK_CHARS = 24_000
+MAX_DOCUMENT_CHARS = 200_000  # metadata documents are small; anything bigger is far more likely data
 
 SYSTEM_PROMPT = """You extract data-quality-relevant metadata from documents of ANY format \
 (DDL, JSON, YAML, CSV, XML, markdown, data contracts, catalog exports, prose).
@@ -60,16 +62,23 @@ Rules:
 
 
 class LLMNormalizer:
-    def __init__(self, client: LLMClient):
-        self._client = client
+    def __init__(self, gateway: LLMGateway):
+        self._gateway = gateway
 
     def __call__(self, name: str, text: str) -> tuple[Metadata | None, Profile | None]:
+        # Refuse before anything is chunked or sent; the gateway enforces mode/size/scrubbing again.
+        if len(text) > MAX_DOCUMENT_CHARS:
+            raise EgressDenied(
+                f"document is {len(text):,} characters (limit {MAX_DOCUMENT_CHARS:,}); not sent to any LLM"
+            )
+        if looks_like_row_data(text):
+            raise EgressDenied(ROW_DATA_MESSAGE)
         metadata: Metadata | None = None
         profile: Profile | None = None
         findings: list[Finding] = []
 
         for chunk in _chunks(text):
-            reply = self._client.complete_json(SYSTEM_PROMPT, f"Document name: {name}\n\n{chunk}")
+            reply = self._gateway.complete_json(Purpose.DOCUMENT, SYSTEM_PROMPT, f"Document name: {name}\n\n{chunk}")
             if not isinstance(reply, dict):
                 continue
             partial_meta = _safe(Metadata, reply.get("metadata"))
