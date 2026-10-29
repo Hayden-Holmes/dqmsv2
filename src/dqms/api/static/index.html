@@ -39,6 +39,20 @@ code{font:12.5px ui-monospace,Menlo,monospace;background:var(--info-soft);paddin
 .tbl{overflow-x:auto}
 pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font-size:12.5px}
 #results{display:none}
+textarea{width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:12.5px ui-monospace,Menlo,monospace}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+@media (max-width:680px){.split{grid-template-columns:1fr}}
+.pane{border:1px solid var(--line);border-radius:10px;min-height:150px;max-height:320px;overflow:auto}
+.paneh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+.node,.basket li{display:flex;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);font-size:14px}
+.node .grow,.basket .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+button.link{background:none;color:var(--accent);padding:0;border:0;text-align:left}
+button.x{background:none;color:var(--muted);padding:0 4px;font-size:16px}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;font-size:13px;align-items:center}
+.crumbs span{color:var(--muted)}
+.basket{list-style:none;margin:0;padding:0}
+details summary{cursor:pointer;margin-top:10px}
 </style>
 </head>
 <body>
@@ -60,9 +74,39 @@ pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padd
     <button class="ghost" id="clear" disabled>Clear</button>
     <span class="muted" id="llmnote"></span>
   </div>
+  <h2>Pick cloud tables</h2>
+  <div class="card">
+    <div class="row" style="margin-top:0">
+      <label>API key <input type="password" id="apikey" autocomplete="off" placeholder="if the service requires one"></label>
+      <label>Start at <select id="rootsel"><option value="">your allowed locations</option></select></label>
+      <input type="text" id="rooturi" spellcheck="false" placeholder="or type a location, e.g. bigquery://project" style="flex:1;min-width:220px">
+      <button class="ghost" id="open">Open</button>
+    </div>
+    <div class="crumbs" id="crumbs"></div>
+    <div class="split">
+      <div class="pane">
+        <div class="paneh"><label><input type="checkbox" id="selall"> select all tables shown</label><span class="muted" id="browsenote"></span></div>
+        <div id="nodes"></div>
+      </div>
+      <div class="pane">
+        <div class="paneh"><strong id="basketcount">0 tables selected</strong><button class="ghost" id="clearbasket">Clear</button></div>
+        <ul class="basket" id="basket"></ul>
+      </div>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="doprofile"> Profile data (aggregate statistics only)</label>
+      <button id="gosrc" disabled>Generate rules for selected tables</button>
+      <span class="muted" id="caphint"></span>
+    </div>
+    <details><summary class="muted">Paste table URIs instead</summary>
+      <textarea id="sources" rows="3" spellcheck="false" placeholder="bigquery://project/dataset/table&#10;gs://bucket/exports/orders.parquet"></textarea>
+    </details>
+    <p class="muted" style="margin:8px 0 0">Browsing lists names and sizes only; no table is read. Only the tables you select are analyzed, and data is profiled only if you tick the box (aggregates: nulls, min/max, lengths; never rows).</p>
+  </div>
   <div id="status"></div>
 
   <section id="results">
+    <div class="row" id="pickerrow" style="display:none"><label>Dataset <select id="datasetpick"></select></label></div>
     <h2>What was understood</h2><div class="card" id="docs"></div>
     <div id="findingswrap"><h2>Findings</h2><div class="card" id="findings"></div></div>
     <h2>Rules <span class="muted" id="count"></span></h2>
@@ -78,7 +122,10 @@ pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padd
 </main>
 <script>
 const $ = id => document.getElementById(id);
-let files = [], analysis = null;
+let files = [], analysis = null, analyses = [];
+const authHeaders = (extra) => { const k = $('apikey').value.trim(); return Object.assign({}, extra||{}, k ? {Authorization:'Bearer '+k} : {}); };
+try { $('apikey').value = sessionStorage.getItem('dqms_key') || ''; } catch (e) {}
+$('apikey').onchange = () => { try { sessionStorage.setItem('dqms_key', $('apikey').value); } catch (e) {} };
 
 function el(tag, attrs, ...kids){
   const n = document.createElement(tag);
@@ -89,8 +136,10 @@ function el(tag, attrs, ...kids){
 const badge = (text, cls) => el('span', {class:'badge '+cls}, text);
 
 fetch('/healthz').then(r=>r.json()).then(h=>{
-  $('llmnote').textContent = h.llm ? 'LLM connected' : 'No LLM configured: only recognizable formats will be parsed';
-  if (!h.llm) $('usellm').checked = false;
+  const off = h.llm_mode === 'off';
+  $('llmnote').textContent = off ? 'LLM off: nothing is sent to a model; only recognizable formats are parsed'
+    : `LLM mode: ${h.llm_mode} (metadata and profile statistics only, never row data${h.llm_mode === 'full' ? '; unknown metadata documents may also be sent' : ''})`;
+  if (off) { $('usellm').checked = false; $('usellm').disabled = true; }
 }).catch(()=>{});
 
 function renderFiles(){
@@ -118,13 +167,133 @@ $('go').onclick = async () => {
   fd.append('use_llm', $('usellm').checked ? 'true' : 'false');
   $('go').disabled = true; status('Analyzing…','info');
   try {
-    const res = await fetch('/v1/analyze', {method:'POST', body: fd});
+    const res = await fetch('/v1/analyze', {method:'POST', body: fd, headers: authHeaders()});
     const body = await res.json();
     if (!res.ok) throw new Error(typeof body.detail==='string' ? body.detail : JSON.stringify(body.detail));
-    analysis = body; $('status').replaceChildren(); render();
+    $('status').replaceChildren(); showAnalyses([body], []);
   } catch (e) { status(e.message, 'error'); }
   finally { $('go').disabled = files.length===0; }
 };
+
+function showAnalyses(list, errors){
+  analyses = list; $('pickerrow').style.display = list.length > 1 ? 'flex' : 'none';
+  $('datasetpick').replaceChildren(...list.map((a,i)=>el('option',{value:String(i)}, a.source || a.ruleset.dataset)));
+  analysis = list[0]; render();
+  if (errors.length) status(errors.join('\n'), 'warning');
+}
+$('datasetpick').onchange = e => { analysis = analyses[+e.target.value]; render(); };
+
+// ---- cloud explorer: browse (names/sizes only), pick tables into a basket, submit them explicitly
+const basket = new Map();      // uri -> display name
+let cap = 50, trail = [], shown = [];
+
+async function call(path, body){
+  const init = body === undefined ? {headers: authHeaders()}
+    : {method:'POST', headers: authHeaders({'content-type':'application/json'}), body: JSON.stringify(body)};
+  const res = await fetch(path, init);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail));
+  return data;
+}
+const lastSegment = uri => uri.replace(/\/$/, '').split('/').pop() || uri;
+const fmtBytes = n => n == null ? '' : n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(0) + ' KB' : n < 1073741824 ? (n/1048576).toFixed(1) + ' MB' : (n/1073741824).toFixed(1) + ' GB';
+
+async function loadRoots(){
+  try {
+    const r = await call('/v1/explorer/roots');
+    cap = r.max_datasets;
+    $('rootsel').replaceChildren(el('option', {value:''}, r.roots.length ? 'your allowed locations' : 'none configured for this key'),
+      ...r.roots.map(u => el('option', {value:u}, u)));
+    $('browsenote').textContent = '';
+  } catch (e) { $('browsenote').textContent = e.message; }
+  renderBasket();
+}
+async function openUri(uri){
+  $('browsenote').textContent = 'loading…';
+  try {
+    const r = await call('/v1/explorer/browse', {uri});
+    const i = trail.findIndex(t => t.uri === uri);
+    trail = i >= 0 ? trail.slice(0, i + 1) : trail.concat([{uri, label: trail.length ? lastSegment(uri) : uri}]);
+    shown = r.nodes;
+    renderNodes(r.truncated); renderCrumbs();
+  } catch (e) { $('browsenote').textContent = e.message; }
+}
+function renderCrumbs(){
+  const parts = [];
+  trail.forEach((t, i) => {
+    if (i) parts.push(el('span', {}, '›'));
+    parts.push(el('button', {class:'link', type:'button'}, t.label));
+    parts[parts.length - 1].onclick = () => openUri(t.uri);
+  });
+  $('crumbs').replaceChildren(...parts);
+}
+function renderNodes(truncated){
+  const rows = shown.map(n => {
+    if (n.kind === 'container') {
+      const open = el('button', {class:'link', type:'button'}, '📁 ' + n.name);
+      open.onclick = () => openUri(n.uri);
+      return el('div', {class:'node'}, el('span', {class:'grow'}, open));
+    }
+    const box = el('input', {type:'checkbox'});
+    box.checked = basket.has(n.uri);
+    box.onchange = () => { box.checked ? basket.set(n.uri, n.name) : basket.delete(n.uri); renderBasket(); syncSelAll(); };
+    const size = [fmtBytes(n.bytes), n.rows != null ? n.rows.toLocaleString() + ' rows' : ''].filter(Boolean).join(' · ');
+    return el('div', {class:'node'}, box, el('span', {class:'grow'}, n.name), el('span', {class:'muted'}, size));
+  });
+  $('nodes').replaceChildren(...(rows.length ? rows : [el('div', {class:'node muted'}, 'nothing here')]));
+  $('browsenote').textContent = truncated ? 'list truncated; open a sub-folder to narrow' : '';
+  syncSelAll();
+}
+function syncSelAll(){
+  const tables = shown.filter(n => n.kind === 'dataset');
+  $('selall').disabled = tables.length === 0;
+  $('selall').checked = tables.length > 0 && tables.every(n => basket.has(n.uri));
+}
+$('selall').onchange = e => {
+  shown.filter(n => n.kind === 'dataset').forEach(n => e.target.checked ? basket.set(n.uri, n.name) : basket.delete(n.uri));
+  renderNodes(false); renderBasket();
+};
+const pasted = () => $('sources').value.split('\n').map(s => s.trim()).filter(Boolean);
+const chosen = () => [...new Set([...basket.keys(), ...pasted()])];
+
+function renderBasket(){
+  const uris = chosen();
+  $('basketcount').textContent = `${uris.length} table${uris.length === 1 ? '' : 's'} selected`;
+  $('basket').replaceChildren(...uris.map(u => {
+    const remove = el('button', {class:'x', type:'button', title:'remove', 'aria-label':'remove ' + u}, '×');
+    remove.onclick = () => { basket.delete(u); $('sources').value = pasted().filter(x => x !== u).join('\n'); renderNodes(false); renderBasket(); };
+    return el('li', {}, el('span', {class:'grow'}, u), remove);
+  }));
+  const over = uris.length > cap;
+  $('caphint').textContent = over ? `limit is ${cap} tables per run; remove ${uris.length - cap}` : `up to ${cap} tables per run`;
+  $('caphint').style.color = over ? 'var(--err)' : '';
+  $('gosrc').disabled = uris.length === 0 || over;
+}
+$('clearbasket').onclick = () => { basket.clear(); $('sources').value = ''; renderNodes(false); renderBasket(); };
+$('sources').oninput = renderBasket;
+$('open').onclick = () => { const u = $('rooturi').value.trim(); if (u) { trail = []; openUri(u); } };
+$('rooturi').onkeydown = e => { if (e.key === 'Enter') $('open').click(); };
+$('rootsel').onchange = e => { if (e.target.value) { $('rooturi').value = e.target.value; trail = []; openUri(e.target.value); } };
+$('apikey').addEventListener('change', loadRoots);
+
+$('gosrc').onclick = async () => {
+  const sources = chosen();   // exactly the tables you picked: nothing is expanded or added
+  $('gosrc').disabled = true; status('Submitting…', 'info');
+  try {
+    let job = await call('/v1/jobs', {sources, profile:{enabled:$('doprofile').checked}, options:{use_llm:$('usellm').checked}});
+    while (!['succeeded','partial','failed'].includes(job.status)) {
+      status(`${job.status}… ${job.done}/${job.total || '?'} tables`, 'info');
+      job = await call(`/v1/jobs/${job.id}?wait=5`);
+    }
+    const ok = job.results.filter(r => r.analysis).map(r => r.analysis);
+    const errs = job.results.filter(r => r.status === 'error').map(r => `${r.source}: ${r.error}`);
+    if (job.error) errs.push(job.error);
+    if (!ok.length) throw new Error(errs.join('\n') || 'nothing was analyzed');
+    $('status').replaceChildren(); showAnalyses(ok, errs);
+  } catch (e) { status(e.message, 'error'); }
+  finally { renderBasket(); }
+};
+loadRoots();
 
 function render(){
   const a = analysis, rs = a.ruleset;
@@ -178,7 +347,7 @@ function download(name, text, type){
 }
 $('dljson').onclick = () => download(`${analysis.ruleset.dataset}_rules.json`, JSON.stringify(analysis.ruleset,null,2), 'application/json');
 $('dlsql').onclick = async () => {
-  const res = await fetch('/v1/export/sql',{method:'POST',headers:{'content-type':'application/json'},
+  const res = await fetch('/v1/export/sql',{method:'POST',headers: authHeaders({'content-type':'application/json'}),
     body: JSON.stringify({metadata:analysis.metadata, ruleset:analysis.ruleset, dialect:$('dialect').value})});
   const checks = await res.json();
   const text = checks.map(c => `-- ${c.rule_id}\n` + (c.sql ? c.sql+';' : `-- ${c.note}`)).join('\n\n');

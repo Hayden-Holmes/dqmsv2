@@ -7,15 +7,19 @@ sees source-specific shapes.
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # --------------------------------------------------------------------------- #
 # Metadata
 # --------------------------------------------------------------------------- #
+
+
+_SIZED_STRING_TYPES = {"CHAR", "VARCHAR", "NVARCHAR", "NCHAR", "CHARACTER", "STRING"}
 
 
 class Column(BaseModel):
@@ -28,6 +32,16 @@ class Column(BaseModel):
     semantic_type: str | None = None  # slug, e.g. "email_address"
     classifications: list[str] = Field(default_factory=list)
     allowed_values: list[str] | None = None
+
+    @model_validator(mode="after")
+    def _length_from_type(self) -> "Column":
+        """A length written only inside the type ('VARCHAR(100)') is still a declared length,
+        whichever source supplied it."""
+        if self.max_length is None and self.datatype and self.base_type in _SIZED_STRING_TYPES:
+            sized = re.search(r"\(\s*(\d+)\s*\)", self.datatype)
+            if sized:
+                self.max_length = int(sized.group(1))
+        return self
 
     @property
     def base_type(self) -> str | None:
@@ -105,7 +119,9 @@ class ColumnProfile(BaseModel):
 
 
 class Profile(BaseModel):
-    row_count: int | None = None
+    row_count: int | None = None  # rows actually profiled (the sample size when sampled)
+    total_rows: int | None = None  # rows in the source, when known and different
+    sampled: bool = False  # a sample cannot prove uniqueness or true min/max
     columns: list[ColumnProfile] = Field(default_factory=list)
 
     def column(self, name: str) -> ColumnProfile | None:
@@ -204,8 +220,16 @@ class Finding(BaseModel):
     message: str
 
 
+SCHEMA_VERSION = "1"
+
+
 class RuleSet(BaseModel):
+    """Stable, versioned output. Pipelines can pin `schema_version` and compare `fingerprint`
+    between runs to detect that the rules (and therefore the source) changed."""
+
+    schema_version: str = SCHEMA_VERSION
     dataset: str
+    fingerprint: str = ""
     rules: list[Rule]
     findings: list[Finding] = Field(default_factory=list)
     unrecognized_documents: int = 0

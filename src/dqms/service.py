@@ -6,8 +6,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from dqms.connectors.base import ConnectorRegistry
+from dqms.connectors.base import BrowseResult, ConnectorError, ConnectorRegistry, DatasetRef, ProfileOptions
 from dqms.llm.client import LLMClient
+from dqms.llm.gateway import LLMMode, Purpose, build_gateway
 from dqms.models import Metadata, Profile, RuleSet
 from dqms.normalize.documents import Document, SourceDoc, ingest
 from dqms.normalize.universal import LLMNormalizer
@@ -25,6 +26,7 @@ class Analysis(BaseModel):
 
     metadata: Metadata
     profile: Profile | None = None
+    source: str | None = None  # URI the metadata was read from, when it came from a connector
     documents: list[DocumentReport] = Field(default_factory=list)
     ruleset: RuleSet
 
@@ -34,15 +36,23 @@ class NoMetadataError(ValueError):
 
 
 class RuleService:
-    def __init__(self, llm: LLMClient | None = None, connectors: ConnectorRegistry | None = None):
-        self._llm = llm
-        self._engine = RuleEngine(llm)
-        self._normalizer = LLMNormalizer(llm) if llm is not None else None
+    def __init__(
+        self,
+        llm: LLMClient | None = None,
+        connectors: ConnectorRegistry | None = None,
+        llm_mode: LLMMode = LLMMode.OFF,
+    ):
+        # The only place an LLM client is wrapped. In `off` (the default) no gateway exists, so
+        # nothing downstream holds anything it could send data to.
+        gateway = build_gateway(llm, llm_mode)
+        self._gateway = gateway
+        self._engine = RuleEngine(gateway)
+        self._normalizer = LLMNormalizer(gateway) if gateway and gateway.allows(Purpose.DOCUMENT) else None
         self.connectors = connectors or ConnectorRegistry()
 
     @property
-    def llm_available(self) -> bool:
-        return self._llm is not None
+    def llm_mode(self) -> LLMMode:
+        return self._gateway.mode if self._gateway else LLMMode.OFF
 
     def analyze_documents(
         self,
@@ -57,7 +67,7 @@ class RuleService:
         if not metadata.columns:
             raise NoMetadataError(
                 "No columns could be extracted from the input. "
-                + ("" if self._llm else "Unrecognized formats need an LLM configured (DQMS_LLM_BASE_URL). ")
+                + ("" if self._normalizer else "Unrecognized formats can only be parsed when the server runs with DQMS_LLM_MODE=full. ")
                 + "Details: "
                 + "; ".join(f"{r.name}: {r.detail}" for r in result.reports)
             )
@@ -65,10 +75,26 @@ class RuleService:
         return self._finish(metadata, result.profile, options, result.findings, result.reports)
 
     def analyze_source(
-        self, kind: str, ref: dict[str, Any], include_profile: bool = False, options: EngineOptions | None = None
+        self, source: str, profile: ProfileOptions | None = None, options: EngineOptions | None = None
     ) -> Analysis:
-        snapshot = self.connectors.get(kind).fetch(ref, include_profile)
-        return self._finish(snapshot.metadata, snapshot.profile, options, [], [])
+        """Read one dataset from a cloud source and derive rules. Containers must be expanded first."""
+        connector, uri = self.connectors.resolve(source)
+        if connector.is_container(uri):
+            raise ConnectorError(f"'{source}' names a group of datasets; use discovery or a job to expand it")
+        snapshot = connector.fetch(uri, profile or ProfileOptions())
+        analysis = self._finish(snapshot.metadata, snapshot.profile, options, [], [])
+        analysis.source = source
+        return analysis
+
+    def discover(self, source: str, limit: int = 500) -> list[DatasetRef]:
+        connector, uri = self.connectors.resolve(source)
+        if not connector.is_container(uri):
+            return [DatasetRef(uri=source, name=uri.parts[-1] if uri.parts else uri.authority)]
+        return connector.discover(uri, limit)
+
+    def browse(self, source: str, limit: int = 500) -> BrowseResult:
+        connector, uri = self.connectors.resolve(source)
+        return connector.browse(uri, limit)
 
     def analyze_models(
         self, metadata: Metadata, profile: Profile | None = None, options: EngineOptions | None = None

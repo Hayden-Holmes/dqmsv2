@@ -13,12 +13,23 @@ dependencies = [
     "uvicorn>=0.29",
     "pyyaml>=6",
     "python-multipart>=0.0.9",
+    "httpx>=0.27",
 ]
+
+[project.scripts]
+dqms = "dqms.cli:main"
 
 [project.optional-dependencies]
 bigquery = ["google-cloud-bigquery>=3.20"]
 azure-llm = ["openai>=1.30", "azure-identity>=1.16"]
-dev = ["pytest>=8", "httpx>=0.27"]
+snowflake = ["snowflake-connector-python>=3.7", "cryptography>=42"]
+databricks = ["databricks-sql-connector>=3.0"]
+files = ["pyarrow>=15"]
+gcs = ["google-cloud-storage>=2.16"]
+s3 = ["boto3>=1.34"]
+azure = ["azure-storage-blob>=12.19", "azure-identity>=1.16"]
+cloud = ["dqms[bigquery,snowflake,databricks,files,gcs,s3,azure]"]
+dev = ["pytest>=8", "pyarrow>=15"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -25,6 +25,7 @@ from dqms.models import (
 )
 from dqms.normalize.ddl import looks_like_ddl, parse_ddl
 from dqms.normalize.profile import looks_like_profile, normalize_profile
+from dqms.normalize.rowdata import ROW_DATA_MESSAGE, looks_like_row_data
 
 Document = str | dict[str, Any]
 # Handles any shape the deterministic handlers do not recognize (normally an LLM).
@@ -92,8 +93,10 @@ def _ingest_one(src: SourceDoc, fallback: Fallback | None):
         partial = _to_partial(parsed)
         if partial is not None:
             return partial, None, "deterministic", "recognized schema"
+    text = src.content if isinstance(src.content, str) else json.dumps(src.content)
+    if looks_like_row_data(text):
+        return None, None, "unrecognized", ROW_DATA_MESSAGE
     if fallback is not None:
-        text = src.content if isinstance(src.content, str) else json.dumps(src.content)
         if text.strip():
             try:
                 meta, prof = fallback(src.name, text)

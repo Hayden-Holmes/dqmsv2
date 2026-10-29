@@ -4,6 +4,7 @@ from conftest import FakeLLM
 
 from dqms.models import RuleType, Tier
 from dqms.normalize.documents import SourceDoc
+from dqms.llm.gateway import LLMMode
 from dqms.service import RuleService
 
 CONTRACT = """
@@ -33,7 +34,7 @@ def contract_reply(**overrides):
 
 def test_unknown_format_is_normalized_by_the_llm():
     llm = FakeLLM(contract_reply(), {"rules": []})
-    analysis = RuleService(llm).analyze_documents([SourceDoc("contract.md", CONTRACT)])
+    analysis = RuleService(llm, llm_mode=LLMMode.FULL).analyze_documents([SourceDoc("contract.md", CONTRACT)])
     assert analysis.documents[0].route == "llm"
     rules = analysis.ruleset.rules
     assert any(r.type is RuleType.ACCEPTED_VALUES and r.columns == ["status"] for r in rules)
@@ -49,7 +50,7 @@ def test_hallucinated_facts_are_dropped_by_grounding():
     ]
     reply["metadata"]["columns"][1]["allowed_values"].append("REFUNDED")  # never mentioned
     reply["metadata"]["owner"] = "Finance Team"  # never mentioned
-    analysis = RuleService(FakeLLM(reply, {"rules": []})).analyze_documents([SourceDoc("c.md", CONTRACT)])
+    analysis = RuleService(FakeLLM(reply, {"rules": []}), llm_mode=LLMMode.FULL).analyze_documents([SourceDoc("c.md", CONTRACT)])
     meta = analysis.metadata
     assert meta.column("credit_card_number") is None
     assert meta.column("status").allowed_values == ["NEW", "SHIPPED", "CANCELLED"]
@@ -59,7 +60,7 @@ def test_hallucinated_facts_are_dropped_by_grounding():
 def test_llm_failure_on_one_document_does_not_lose_the_others(all_docs):
     llm = FakeLLM(RuntimeError("model down"), {"rules": []})
     docs = all_docs + [SourceDoc("weird.txt", "just prose about customers")]
-    analysis = RuleService(llm).analyze_documents(docs)
+    analysis = RuleService(llm, llm_mode=LLMMode.FULL).analyze_documents(docs)
     weird = next(d for d in analysis.documents if d.name == "weird.txt")
     assert weird.route == "unrecognized" and "model down" in weird.detail
     assert analysis.metadata.name == "customer" and analysis.ruleset.rules
@@ -76,7 +77,7 @@ def test_llm_rules_are_validated_capped_and_limited_to_known_columns():
         "not even a dict",
     ]}
     llm = FakeLLM(contract_reply(), proposed)
-    rules = RuleService(llm).analyze_documents([SourceDoc("c.md", CONTRACT)]).ruleset.rules
+    rules = RuleService(llm, llm_mode=LLMMode.FULL).analyze_documents([SourceDoc("c.md", CONTRACT)]).ruleset.rules
     llm_rules = [r for r in rules if "llm" in r.evidence]
     kept = sorted((r.type.value, tuple(r.columns)) for r in llm_rules)
     assert kept == [("compare", ("placed_at", "shipped_at")), ("range", ("order_id",))]
@@ -85,14 +86,14 @@ def test_llm_rules_are_validated_capped_and_limited_to_known_columns():
 
 def test_enrichment_failure_keeps_deterministic_rules_and_reports_it(all_docs):
     llm = FakeLLM(RuntimeError("rate limited"))
-    analysis = RuleService(llm).analyze_documents(all_docs)  # all deterministic; only enrichment calls the LLM
+    analysis = RuleService(llm, llm_mode=LLMMode.FULL).analyze_documents(all_docs)  # all deterministic; only enrichment calls the LLM
     assert analysis.ruleset.rules and not analysis.ruleset.llm_used
     assert any(f.kind == "llm_enrichment_failed" for f in analysis.ruleset.findings)
 
 
 def test_sensitive_column_values_are_not_sent_to_the_llm(all_docs):
     llm = FakeLLM({"rules": []})
-    RuleService(llm).analyze_documents(all_docs)
+    RuleService(llm, llm_mode=LLMMode.FULL).analyze_documents(all_docs)
     prompt = llm.calls[0][1]
     assert "1920-01-01" not in prompt  # date_of_birth is classified sensitive: min/max withheld
     assert "ACTIVE" in prompt  # non-sensitive status values are fine

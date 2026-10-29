@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 
-from dqms.llm.client import LLMClient
+from dqms.llm.gateway import LLMGateway, Purpose
 from dqms.models import TIER_ORDER, Finding, Metadata, Profile, Rule, RuleSet
 from dqms.rules.base import Context, RuleGenerator
 from dqms.rules.cross import CrossColumnGenerator
@@ -20,13 +22,13 @@ from dqms.rules.semantic import SemanticGenerator
 @dataclass
 class EngineOptions:
     min_confidence: float = 0.0
-    use_llm: bool = True  # only takes effect when the engine has an LLM client
+    use_llm: bool = True  # can only narrow the server's LLM policy, never widen it
     min_profile_rows: int = 100
     disabled_generators: set[str] = field(default_factory=set)
 
 
 class RuleEngine:
-    def __init__(self, llm: LLMClient | None = None, generators: list[RuleGenerator] | None = None):
+    def __init__(self, llm: LLMGateway | None = None, generators: list[RuleGenerator] | None = None):
         self._generators: list[RuleGenerator] = generators or [
             DeclaredGenerator(),
             DocumentedGenerator(),
@@ -34,7 +36,7 @@ class RuleEngine:
             ObservedGenerator(),
             CrossColumnGenerator(),
         ]
-        self._enricher = LLMRuleEnricher(llm) if llm is not None else None
+        self._enricher = LLMRuleEnricher(llm) if llm is not None and llm.allows(Purpose.RULES) else None
 
     def generate(
         self,
@@ -71,7 +73,16 @@ class RuleEngine:
         for r in kept:
             r.id = _rule_id(metadata.name, r)
 
-        return RuleSet(dataset=metadata.name, rules=kept, findings=findings, llm_used=llm_used)
+        return RuleSet(
+            dataset=metadata.name, fingerprint=fingerprint(kept), rules=kept, findings=findings, llm_used=llm_used
+        )
+
+
+def fingerprint(rules: list[Rule]) -> str:
+    """Hash of what the rules *check* (identity, params, tier). Wording, evidence and
+    confidence are excluded so cosmetic changes don't look like drift."""
+    canonical = sorted((r.id, r.tier.value, json.dumps(r.params, sort_keys=True, default=str)) for r in rules)
+    return hashlib.sha256(json.dumps(canonical).encode()).hexdigest()[:16]
 
 
 def _rule_id(dataset: str, r: Rule) -> str:

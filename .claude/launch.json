@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "dqms",
-      "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": ["-m", "uvicorn", "--factory", "dqms.api.app:app_factory", "--app-dir", "src", "--port", "8000"],
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["DQMS_ALLOW_ANONYMOUS=1", ".venv/bin/python", "-m", "uvicorn", "--factory", "dqms.api.app:app_factory", "--app-dir", "src", "--port", "8000"],
       "port": 8000
     }
   ]
