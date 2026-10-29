@@ -1,0 +1,24 @@
+Convert the following metadata into the canonical format.
+
+Canonical format:
+{{
+    "dataset": {{
+        "name": "",
+        "description": ""
+    }},
+    "columns": [
+        {{
+            "name": "",
+            "datatype": "",
+            "description": "",
+            "semantic_type": ""
+        }}
+    ],
+    "relationships": [],
+    "business_metadata": {{}}
+}}
+
+Metadata:
+{request}
+
+Return only valid JSON.

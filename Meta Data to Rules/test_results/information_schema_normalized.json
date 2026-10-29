@@ -1,0 +1,69 @@
+{
+  "dataset": {
+    "name": "customer",
+    "description": ""
+  },
+  "columns": [
+    {
+      "name": "customer_id",
+      "datatype": "BIGINT",
+      "description": "",
+      "semantic_type": "",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "",
+        "uniqueness": "UNIQUE"
+      },
+      "comments": ""
+    },
+    {
+      "name": "first_name",
+      "datatype": "VARCHAR",
+      "description": "",
+      "semantic_type": "",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "100",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "last_name",
+      "datatype": "VARCHAR",
+      "description": "",
+      "semantic_type": "",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "100",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "email",
+      "datatype": "VARCHAR",
+      "description": "",
+      "semantic_type": "",
+      "constraints": {
+        "nullability": "NULL",
+        "length": "255",
+        "uniqueness": "UNIQUE"
+      },
+      "comments": ""
+    }
+  ],
+  "primary_keys": [
+    "customer_id"
+  ],
+  "foreign_keys": [],
+  "relationships": [],
+  "lineage": "",
+  "ownership": "",
+  "profiling": {
+    "null_percentage": "",
+    "distinct_values": "",
+    "value_ranges": ""
+  },
+  "business_metadata": {}
+}

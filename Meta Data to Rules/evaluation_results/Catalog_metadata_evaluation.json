@@ -1,0 +1,44 @@
+{
+  "overall_score": 70,
+  "source_elements": 10,
+  "preserved_elements": 8,
+  "lost_elements": 2,
+  "preservation_rate": 80,
+  "scores": {
+    "completeness_score": 7,
+    "fidelity_score": 8,
+    "information_preservation_score": 8,
+    "normalization_quality_score": 7,
+    "semantic_extraction_score": 7,
+    "rule_generation_readiness_score": 7
+  },
+  "strengths": [
+    "Key metadata elements such as dataset name, description, ownership, domain, tags, steward, and columns are preserved.",
+    "Structured representation of columns with descriptions.",
+    "Business metadata and ownership information are retained.",
+    "Basic profiling placeholders are included for future data quality assessments."
+  ],
+  "weaknesses": [
+    "Datatypes, constraints, and semantic types are not specified, limiting rule generation.",
+    "Primary keys, foreign keys, relationships, lineage, and detailed constraints are missing.",
+    "Profiling data fields are empty, reducing immediate utility for data quality checks.",
+    "Some metadata elements like 'asset_name' are renamed to 'dataset.name' but not all source elements are explicitly mapped."
+  ],
+  "missing_information": [
+    "Explicit datatypes for columns.",
+    "Constraints such as nullability, length, and uniqueness.",
+    "Primary key and foreign key definitions.",
+    "Lineage information.",
+    "Semantic types for columns.",
+    "Detailed profiling metrics."
+  ],
+  "incorrect_transformations": [
+    "No major incorrect transformations observed, but the omission of datatype and constraints could lead to incomplete rule derivation."
+  ],
+  "rule_generation_gaps": [
+    "Without datatype and constraint info, rules for NOT NULL, length, and uniqueness cannot be reliably generated.",
+    "Lack of primary key and foreign key info limits referential integrity rule creation.",
+    "Semantic types are not specified, reducing semantic validation capabilities."
+  ],
+  "summary": "The normalized metadata captures the core dataset and business context but omits critical technical details such as datatypes, constraints, and relationships. This limits its utility for comprehensive data governance and rule generation. Overall, it preserves most high-level information but needs enhancements for full fidelity and rule derivation readiness."
+}

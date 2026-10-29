@@ -1,0 +1,44 @@
+{
+  "overall_score": 85,
+  "source_elements": 20,
+  "preserved_elements": 17,
+  "lost_elements": 3,
+  "preservation_rate": 85,
+  "scores": {
+    "completeness_score": 90,
+    "fidelity_score": 85,
+    "information_preservation_score": 85,
+    "normalization_quality_score": 80,
+    "semantic_extraction_score": 85,
+    "rule_generation_readiness_score": 90
+  },
+  "strengths": [
+    "All primary metadata elements such as dataset name, description, columns, datatypes, constraints, PK/FK relationships, comments, lineage, ownership, and profiling data are preserved.",
+    "Constraints and relationships are clearly specified, enabling rule generation.",
+    "Semantic types and enumerations are well represented.",
+    "Profiling data and lineage provide useful context.",
+    "Ownership and update frequency metadata are included."
+  ],
+  "weaknesses": [
+    "Some detailed constraints, such as length for varchar fields, are inconsistently represented (e.g., empty string vs. explicit value).",
+    "Comments and glossary terms are not explicitly extracted or standardized.",
+    "The source system name is included but could be more detailed or standardized.",
+    "Some metadata elements like 'classification' are missing or not explicitly represented."
+  ],
+  "missing_information": [
+    "Explicit glossary or controlled vocabulary definitions.",
+    "Detailed classification or sensitivity levels beyond 'Confidential'.",
+    "More granular lineage details or transformation steps.",
+    "Standardized units or measurement details if applicable."
+  ],
+  "incorrect_transformations": [
+    "None identified; transformations appear appropriate, such as date format standardization and email validation notes."
+  ],
+  "rule_generation_gaps": [
+    "Length constraints are partially specified; some fields lack explicit length rules.",
+    "Enumerations are noted but not formally codified for rule enforcement.",
+    "Foreign key constraints are described but may require explicit referential integrity rules for automation.",
+    "Cross-column validation rules are implied but not explicitly detailed."
+  ],
+  "summary": "The normalized metadata effectively preserves the core elements of the source, including table structure, column definitions, constraints, relationships, and profiling data. Minor inconsistencies in constraint representation and missing explicit standardization details slightly reduce the overall fidelity. The metadata is well-structured for rule generation, with most key elements present, enabling downstream automation. Overall, the normalization is of high quality with room for minor enhancements in standardization and completeness."
+}

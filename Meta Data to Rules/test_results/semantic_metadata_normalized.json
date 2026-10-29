@@ -1,0 +1,95 @@
+{
+  "dataset": {
+    "name": "",
+    "description": ""
+  },
+  "columns": [
+    {
+      "name": "customer_id",
+      "datatype": "string",
+      "description": "",
+      "semantic_type": "identifier",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "",
+        "uniqueness": "UNIQUE"
+      },
+      "comments": ""
+    },
+    {
+      "name": "email",
+      "datatype": "string",
+      "description": "",
+      "semantic_type": "email_address",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "country_code",
+      "datatype": "string",
+      "description": "",
+      "semantic_type": "iso_country_code",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "customer_status",
+      "datatype": "string",
+      "description": "",
+      "semantic_type": "status",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "date_of_birth",
+      "datatype": "date",
+      "description": "",
+      "semantic_type": "birth_date",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    }
+  ],
+  "primary_keys": [
+    "customer_id"
+  ],
+  "foreign_keys": [],
+  "relationships": [],
+  "lineage": "",
+  "ownership": "",
+  "profiling": {
+    "null_percentage": {
+      "customer_id": "0%",
+      "email": "",
+      "country_code": "",
+      "customer_status": "",
+      "date_of_birth": ""
+    },
+    "distinct_values": {
+      "customer_id": "",
+      "email": "",
+      "country_code": "",
+      "customer_status": "",
+      "date_of_birth": ""
+    },
+    "value_ranges": {
+      "date_of_birth": ""
+    }
+  },
+  "business_metadata": {}
+}

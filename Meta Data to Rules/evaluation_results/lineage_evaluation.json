@@ -1,0 +1,36 @@
+{
+  "overall_score": 50,
+  "source_elements": 4,
+  "preserved_elements": 4,
+  "lost_elements": 0,
+  "preservation_rate": 100,
+  "scores": {
+    "completeness_score": 40,
+    "fidelity_score": 80,
+    "information_preservation_score": 100,
+    "normalization_quality_score": 60,
+    "semantic_extraction_score": 70,
+    "rule_generation_readiness_score": 50
+  },
+  "strengths": [
+    "All key tables and relationships (upstream and downstream) are preserved.",
+    "Lineage information is included, aiding traceability.",
+    "Basic metadata such as dataset name and relationships are captured."
+  ],
+  "weaknesses": [
+    "Lack of detailed metadata elements such as columns, data types, constraints, primary keys, foreign keys, comments, and glossary terms.",
+    "No profiling data or ownership information included.",
+    "Limited semantic detail and contextual information.",
+    "No explicit constraints or data quality indicators.",
+    "Some metadata elements necessary for comprehensive understanding and rule generation are missing."
+  ],
+  "missing_information": [
+    "Columns, data types, constraints, primary keys, foreign keys, comments, glossary terms, ownership, profiling data, classifications, semantic annotations."
+  ],
+  "incorrect_transformations": [],
+  "rule_generation_gaps": [
+    "Insufficient metadata to derive NOT NULL, uniqueness, length, datatype, or cross-column validation rules.",
+    "Lack of detailed constraints and data quality indicators."
+  ],
+  "summary": "The normalized metadata accurately captures the core relationships and lineage from the source but lacks detailed metadata elements necessary for comprehensive understanding, rule generation, and semantic richness. It provides a basic structural overview but requires additional metadata to fully preserve source details and support downstream rule derivation."
+}

@@ -1,0 +1,119 @@
+{
+  "dataset": {
+    "name": "Sample Dataset",
+    "description": "A comprehensive dataset used for demonstration purposes, including various data types, constraints, and relationships."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "datatype": "integer",
+      "description": "Unique identifier for each record.",
+      "semantic_type": "Primary Key",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "",
+        "uniqueness": "Unique"
+      },
+      "comments": "Serves as the primary key for the dataset."
+    },
+    {
+      "name": "name",
+      "datatype": "varchar",
+      "description": "Name of the individual or entity.",
+      "semantic_type": "Attribute",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "100",
+        "uniqueness": "Non-unique"
+      },
+      "comments": "Maximum length of 100 characters."
+    },
+    {
+      "name": "email",
+      "datatype": "varchar",
+      "description": "Email address of the individual.",
+      "semantic_type": "Attribute",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "255",
+        "uniqueness": "Non-unique"
+      },
+      "comments": "Must follow email format; validation rule: must contain '@'."
+    },
+    {
+      "name": "signup_date",
+      "datatype": "date",
+      "description": "Date when the user signed up.",
+      "semantic_type": "Temporal Attribute",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "",
+        "uniqueness": "Non-unique"
+      },
+      "comments": "Format: YYYY-MM-DD."
+    },
+    {
+      "name": "status",
+      "datatype": "varchar",
+      "description": "Current status of the user account.",
+      "semantic_type": "Attribute",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "20",
+        "uniqueness": "Non-unique"
+      },
+      "comments": "Enumeration: 'active', 'inactive', 'pending'."
+    }
+  ],
+  "primary_keys": [
+    "id"
+  ],
+  "foreign_keys": [
+    {
+      "column": "status",
+      "references_table": "status_lookup",
+      "references_column": "status_code"
+    }
+  ],
+  "relationships": [
+    {
+      "type": "many-to-one",
+      "from_table": "Sample Dataset",
+      "from_column": "status",
+      "to_table": "status_lookup",
+      "to_column": "status_code"
+    }
+  ],
+  "lineage": "Data imported from source system XYZ, transformed to standardize date formats and validate email addresses.",
+  "ownership": "Data Governance Team, DataSteward John Doe",
+  "profiling": {
+    "null_percentage": {
+      "id": "0%",
+      "name": "2%",
+      "email": "5%",
+      "signup_date": "0%",
+      "status": "3%"
+    },
+    "distinct_values": {
+      "id": "1000",
+      "name": "950",
+      "email": "900",
+      "signup_date": "365",
+      "status": "3"
+    },
+    "value_ranges": {
+      "signup_date": "2020-01-01 to 2023-10-01",
+      "status": "active, inactive, pending"
+    }
+  },
+  "business_metadata": {
+    "owner": "Marketing Department",
+    "update_frequency": "Monthly",
+    "sensitivity": "Confidential",
+    "source_system": "CRM System",
+    "validation_rules": {
+      "email": "Must contain '@' and valid domain.",
+      "status": "Must be one of the enumerated values."
+    }
+  }
+}

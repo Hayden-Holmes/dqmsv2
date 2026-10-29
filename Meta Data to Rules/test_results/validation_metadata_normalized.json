@@ -1,0 +1,70 @@
+{
+  "dataset": {
+    "name": "customer",
+    "description": ""
+  },
+  "columns": [
+    {
+      "name": "customer_id",
+      "datatype": "string",
+      "description": "",
+      "semantic_type": "Identifier",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "",
+        "uniqueness": "UNIQUE"
+      },
+      "comments": ""
+    },
+    {
+      "name": "email",
+      "datatype": "string",
+      "description": "",
+      "semantic_type": "Contact Information",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": "Must be a valid email address as per validation rule"
+    },
+    {
+      "name": "customer_status",
+      "datatype": "string",
+      "description": "",
+      "semantic_type": "Status",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": "Allowed values as per validation rule"
+    }
+  ],
+  "primary_keys": [
+    "customer_id"
+  ],
+  "foreign_keys": [],
+  "relationships": [],
+  "lineage": "",
+  "ownership": "",
+  "profiling": {
+    "null_percentage": "",
+    "distinct_values": "",
+    "value_ranges": ""
+  },
+  "business_metadata": {
+    "validation_rules": {
+      "customer_id": [
+        "not_null",
+        "unique"
+      ],
+      "email": [
+        "valid_email"
+      ],
+      "customer_status": [
+        "allowed_values"
+      ]
+    }
+  }
+}

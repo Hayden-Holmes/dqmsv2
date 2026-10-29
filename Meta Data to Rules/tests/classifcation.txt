@@ -1,0 +1,22 @@
+{
+  "table": "customer",
+
+  "classifications": [
+    {
+      "column": "email",
+      "classification": "PII"
+    },
+    {
+      "column": "first_name",
+      "classification": "PII"
+    },
+    {
+      "column": "last_name",
+      "classification": "PII"
+    },
+    {
+      "column": "date_of_birth",
+      "classification": "Sensitive Personal Data"
+    }
+  ]
+}

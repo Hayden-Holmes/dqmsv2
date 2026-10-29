@@ -1,0 +1,74 @@
+{
+  "results": [
+    {
+      "file": "Catalog_metadata.txt",
+      "overall_score": 70,
+      "preservation_rate": 80,
+      "completeness_score": 7,
+      "rule_generation_readiness_score": 7
+    },
+    {
+      "file": "classifcation.txt",
+      "overall_score": 80,
+      "preservation_rate": 100,
+      "completeness_score": 4,
+      "rule_generation_readiness_score": 4
+    },
+    {
+      "file": "data_contract.txt",
+      "overall_score": 85,
+      "preservation_rate": 85,
+      "completeness_score": 90,
+      "rule_generation_readiness_score": 90
+    },
+    {
+      "file": "ddl.txt",
+      "overall_score": 85,
+      "preservation_rate": 100,
+      "completeness_score": 4.5,
+      "rule_generation_readiness_score": 4.5
+    },
+    {
+      "file": "glossary.txt",
+      "overall_score": 80,
+      "preservation_rate": 100,
+      "completeness_score": 4,
+      "rule_generation_readiness_score": 4
+    },
+    {
+      "file": "information_schema.txt",
+      "overall_score": 80,
+      "preservation_rate": 84.62,
+      "completeness_score": 4,
+      "rule_generation_readiness_score": 4
+    },
+    {
+      "file": "lineage.txt",
+      "overall_score": 50,
+      "preservation_rate": 100,
+      "completeness_score": 40,
+      "rule_generation_readiness_score": 50
+    },
+    {
+      "file": "profiling.txt",
+      "overall_score": 80,
+      "preservation_rate": 87.5,
+      "completeness_score": 8,
+      "rule_generation_readiness_score": 8
+    },
+    {
+      "file": "semantic_metadata.txt",
+      "overall_score": 85,
+      "preservation_rate": 100,
+      "completeness_score": 4,
+      "rule_generation_readiness_score": 4
+    },
+    {
+      "file": "validation_metadata.txt",
+      "overall_score": 85,
+      "preservation_rate": 87.5,
+      "completeness_score": 8,
+      "rule_generation_readiness_score": 8
+    }
+  ]
+}

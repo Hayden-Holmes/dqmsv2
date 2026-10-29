@@ -1,0 +1,177 @@
+{
+  "dataset": {
+    "name": "customer",
+    "description": "Master customer records"
+  },
+  "columns": [
+    {
+      "name": "customer_id",
+      "datatype": "BIGINT",
+      "description": "Unique customer identifier",
+      "semantic_type": "Identifier",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": null,
+        "uniqueness": "UNIQUE"
+      },
+      "comments": null
+    },
+    {
+      "name": "first_name",
+      "datatype": "VARCHAR(100)",
+      "description": null,
+      "semantic_type": "Personal Name",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "100",
+        "uniqueness": "None"
+      },
+      "comments": null
+    },
+    {
+      "name": "last_name",
+      "datatype": "VARCHAR(100)",
+      "description": null,
+      "semantic_type": "Personal Name",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "100",
+        "uniqueness": "None"
+      },
+      "comments": null
+    },
+    {
+      "name": "email",
+      "datatype": "VARCHAR(255)",
+      "description": null,
+      "semantic_type": "Contact Information",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "255",
+        "uniqueness": "UNIQUE"
+      },
+      "comments": null
+    },
+    {
+      "name": "date_of_birth",
+      "datatype": "DATE",
+      "description": null,
+      "semantic_type": "Date",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": null,
+        "uniqueness": "None"
+      },
+      "comments": null
+    },
+    {
+      "name": "customer_status",
+      "datatype": "VARCHAR(20)",
+      "description": "Allowed values: ACTIVE, INACTIVE, SUSPENDED",
+      "semantic_type": "Status",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "20",
+        "uniqueness": "None"
+      },
+      "comments": null
+    },
+    {
+      "name": "country_code",
+      "datatype": "CHAR(2)",
+      "description": "ISO 3166-1 alpha-2 country code",
+      "semantic_type": "Country Code",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "2",
+        "uniqueness": "None"
+      },
+      "comments": null
+    },
+    {
+      "name": "registration_date",
+      "datatype": "TIMESTAMP",
+      "description": null,
+      "semantic_type": "Timestamp",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": null,
+        "uniqueness": "None"
+      },
+      "comments": null
+    },
+    {
+      "name": "created_at",
+      "datatype": "TIMESTAMP",
+      "description": null,
+      "semantic_type": "Timestamp",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": null,
+        "uniqueness": "None"
+      },
+      "comments": null
+    },
+    {
+      "name": "updated_at",
+      "datatype": "TIMESTAMP",
+      "description": null,
+      "semantic_type": "Timestamp",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": null,
+        "uniqueness": "None"
+      },
+      "comments": null
+    }
+  ],
+  "primary_keys": [
+    "customer_id"
+  ],
+  "foreign_keys": [],
+  "relationships": [],
+  "lineage": "Source: Relational database table 'customer' with schema as defined.",
+  "ownership": "Data owner: [Specify owner or team responsible]",
+  "profiling": {
+    "null_percentage": {
+      "customer_id": "0%",
+      "first_name": "0%",
+      "last_name": "0%",
+      "email": "may vary",
+      "date_of_birth": "may vary",
+      "customer_status": "0%",
+      "country_code": "0%",
+      "registration_date": "0%",
+      "created_at": "0%",
+      "updated_at": "may vary"
+    },
+    "distinct_values": {
+      "customer_id": "Unique",
+      "first_name": "varies",
+      "last_name": "varies",
+      "email": "may vary",
+      "date_of_birth": "may vary",
+      "customer_status": "ACTIVE, INACTIVE, SUSPENDED",
+      "country_code": "varies",
+      "registration_date": "varies",
+      "created_at": "varies",
+      "updated_at": "may vary"
+    },
+    "value_ranges": {
+      "date_of_birth": "Valid date range",
+      "registration_date": "Valid timestamp range",
+      "created_at": "Valid timestamp range",
+      "updated_at": "Valid timestamp range"
+    }
+  },
+  "business_metadata": {
+    "validation_rules": {
+      "customer_status": [
+        "ACTIVE",
+        "INACTIVE",
+        "SUSPENDED"
+      ],
+      "country_code": "ISO 3166-1 alpha-2 codes"
+    }
+  }
+}

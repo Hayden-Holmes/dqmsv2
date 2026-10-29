@@ -1,0 +1,37 @@
+{
+  "overall_score": 80,
+  "source_elements": 3,
+  "preserved_elements": 3,
+  "lost_elements": 0,
+  "preservation_rate": 100,
+  "scores": {
+    "completeness_score": 4,
+    "fidelity_score": 4,
+    "information_preservation_score": 4,
+    "normalization_quality_score": 4,
+    "semantic_extraction_score": 4,
+    "rule_generation_readiness_score": 4
+  },
+  "strengths": [
+    "All source terms and definitions are preserved in the glossary.",
+    "Key metadata elements such as columns, constraints, primary keys, and comments are included.",
+    "Profiling data and lineage information are present, supporting data understanding."
+  ],
+  "weaknesses": [
+    "Some source definitions (e.g., 'Customer') are only indirectly represented via 'Customer' term in glossary, not explicitly linked to column semantics.",
+    "The term 'Active Customer' from source is not explicitly mapped; instead, 'CustomerStatus' includes 'Active' as a value, but the specific term is not directly referenced.",
+    "The source 'Customer Status' term is preserved in the glossary but not explicitly connected to the 'CustomerStatus' column description."
+  ],
+  "missing_information": [
+    "Explicit mapping of source terms to normalized columns or semantic types.",
+    "Details on how 'Active Customer' and 'Customer Status' are operationalized in the dataset."
+  ],
+  "incorrect_transformations": [
+    "None identified."
+  ],
+  "rule_generation_gaps": [
+    "While constraints and enumerations are specified, explicit rules for 'Active'/'Inactive' status enforcement are not detailed.",
+    "No cross-column validation rules are specified."
+  ],
+  "summary": "The normalized metadata effectively captures the core elements of the source, including key terms, definitions, and dataset structure. It maintains high fidelity and completeness, with minor gaps in explicit semantic linkages and detailed rule specifications. Overall, it is well-prepared for downstream rule generation and data understanding."
+}

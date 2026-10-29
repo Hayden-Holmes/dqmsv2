@@ -1,0 +1,24 @@
+CREATE TABLE customer (
+    customer_id BIGINT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    date_of_birth DATE,
+    customer_status VARCHAR(20) NOT NULL,
+    country_code CHAR(2) NOT NULL,
+    registration_date TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP
+);
+
+COMMENT ON TABLE customer IS
+'Master customer records';
+
+COMMENT ON COLUMN customer.customer_id IS
+'Unique customer identifier';
+
+COMMENT ON COLUMN customer.customer_status IS
+'Allowed values: ACTIVE, INACTIVE, SUSPENDED';
+
+COMMENT ON COLUMN customer.country_code IS
+'ISO 3166-1 alpha-2 country code';

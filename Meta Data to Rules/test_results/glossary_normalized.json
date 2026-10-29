@@ -1,0 +1,103 @@
+{
+  "dataset": {
+    "name": "Customer Data",
+    "description": "A dataset containing customer information, including status and activity levels."
+  },
+  "columns": [
+    {
+      "name": "CustomerID",
+      "datatype": "string",
+      "description": "Unique identifier for each customer.",
+      "semantic_type": "Primary Key",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "50",
+        "uniqueness": "Unique"
+      },
+      "comments": "Serves as the primary key for customer records."
+    },
+    {
+      "name": "CustomerName",
+      "datatype": "string",
+      "description": "Full name of the customer.",
+      "semantic_type": "Customer Name",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "100",
+        "uniqueness": "Non-unique"
+      },
+      "comments": "Customer's full name as provided."
+    },
+    {
+      "name": "CustomerStatus",
+      "datatype": "string",
+      "description": "Current status of the customer, indicating if they are active or inactive.",
+      "semantic_type": "Customer Status",
+      "constraints": {
+        "nullability": "NOT NULL",
+        "length": "20",
+        "uniqueness": "Non-unique"
+      },
+      "comments": "Values typically include 'Active', 'Inactive', etc."
+    },
+    {
+      "name": "StatusDate",
+      "datatype": "date",
+      "description": "Date when the customer status was last updated.",
+      "semantic_type": "Status Update Date",
+      "constraints": {
+        "nullability": "NULLABLE",
+        "length": "",
+        "uniqueness": "Non-unique"
+      },
+      "comments": "Tracks the last change in customer status."
+    }
+  ],
+  "primary_keys": [
+    "CustomerID"
+  ],
+  "foreign_keys": [],
+  "relationships": [],
+  "lineage": "Derived from the customer management system, synchronized weekly.",
+  "ownership": "Customer Data Team",
+  "profiling": {
+    "null_percentage": {
+      "CustomerID": "0%",
+      "CustomerName": "2%",
+      "CustomerStatus": "0%",
+      "StatusDate": "5%"
+    },
+    "distinct_values": {
+      "CustomerID": "1000",
+      "CustomerName": "950",
+      "CustomerStatus": "3",
+      "StatusDate": "365"
+    },
+    "value_ranges": {
+      "CustomerID": "Alphanumeric, up to 50 characters",
+      "CustomerName": "Text, up to 100 characters",
+      "CustomerStatus": "Enumerated values: 'Active', 'Inactive', 'Pending'",
+      "StatusDate": "Date in YYYY-MM-DD format"
+    }
+  },
+  "business_metadata": {
+    "terms": [
+      {
+        "term": "Customer",
+        "definition": "An individual or organization that purchases products."
+      },
+      {
+        "term": "Active Customer",
+        "definition": "A customer currently eligible to place orders."
+      },
+      {
+        "term": "Customer Status",
+        "definition": "Business state of a customer record."
+      }
+    ],
+    "validation_rules": {
+      "CustomerID": "Must be unique and non-null.",
+      "CustomerStatus": "Must be one of 'Active', 'Inactive', 'Pending'."
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "dataset": {
+    "name": "customer",
+    "description": ""
+  },
+  "columns": [],
+  "primary_keys": [],
+  "foreign_keys": [],
+  "relationships": [
+    {
+      "type": "upstream",
+      "system": "CRM",
+      "table": "crm_customer"
+    },
+    {
+      "type": "downstream",
+      "system": "Analytics",
+      "table": "customer_dimension"
+    },
+    {
+      "type": "downstream",
+      "system": "Marketing",
+      "table": "campaign_customer"
+    }
+  ],
+  "lineage": "Data originates from CRM.crm_customer and flows downstream to Analytics.customer_dimension and Marketing.campaign_customer.",
+  "ownership": "",
+  "profiling": {
+    "null_percentage": "",
+    "distinct_values": "",
+    "value_ranges": ""
+  },
+  "business_metadata": {}
+}

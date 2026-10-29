@@ -1,0 +1,40 @@
+{
+  "overall_score": 80,
+  "source_elements": 4,
+  "preserved_elements": 4,
+  "lost_elements": 0,
+  "preservation_rate": 100,
+  "scores": {
+    "completeness_score": 4,
+    "fidelity_score": 4,
+    "information_preservation_score": 4,
+    "normalization_quality_score": 4,
+    "semantic_extraction_score": 4,
+    "rule_generation_readiness_score": 4
+  },
+  "strengths": [
+    "All source columns and their classifications are preserved.",
+    "Semantic types are correctly extracted and represented.",
+    "Metadata elements such as table name and classifications are maintained.",
+    "Normalized metadata is structured to support rule generation."
+  ],
+  "weaknesses": [
+    "Datatype, description, nullability, length, and constraints are not specified, limiting detailed rule derivation.",
+    "No primary or foreign keys are defined, which could impact referential integrity rules.",
+    "Additional metadata such as lineage, ownership, and detailed profiling are missing.",
+    "Comments and glossary terms are not included."
+  ],
+  "missing_information": [
+    "Data types for columns",
+    "Constraints such as nullability, length, and uniqueness",
+    "Primary and foreign key definitions",
+    "Ownership, lineage, and detailed profiling data"
+  ],
+  "incorrect_transformations": [],
+  "rule_generation_gaps": [
+    "Lack of nullability and length constraints prevents full rule derivation.",
+    "Absence of key constraints limits referential integrity rules.",
+    "No explicit datatype information may hinder datatype-specific rules."
+  ],
+  "summary": "The normalized metadata accurately preserves core structural and semantic information from the source, especially classifications and table/column names. However, it lacks detailed metadata elements such as data types, constraints, keys, and additional contextual information, which are essential for comprehensive rule generation and detailed data governance. Overall, it provides a solid foundation but requires enrichment for full rule derivation capabilities."
+}

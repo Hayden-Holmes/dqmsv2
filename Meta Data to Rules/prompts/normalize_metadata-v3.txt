@@ -1,0 +1,73 @@
+Convert the following metadata into the comprehensive canonical format while preserving as much information as possible.
+
+Objectives:
+
+1. Preserve all available metadata.
+2. Standardize structure where possible.
+3. Do not discard metadata that does not fit perfectly into the canonical model.
+4. Extract semantic meaning when supported by evidence.
+5. Capture structural, governance, operational, lineage, profiling, and business metadata.
+
+Canonical Format:
+
+{
+  "dataset": {
+    "name": "",
+    "description": ""
+  },
+  "tables": [
+    {
+      "name": "",
+      "description": "",
+      "columns": [
+        {
+          "name": "",
+          "datatype": "",
+          "constraints": {
+            "nullable": true,
+            "length": "",
+            "unique": false,
+            "primary_key": false,
+            "foreign_key": {
+              "reference_table": "",
+              "reference_column": ""
+            }
+          },
+          "description": "",
+          "semantic_type": ""
+        }
+      ],
+      "constraints": [],
+      "comments": "",
+      "lineage": "",
+      "ownership": ""
+    }
+  ],
+  "relationships": [],
+  "business_metadata": {},
+  "profiling_metadata": {},
+  "governance_metadata": {},
+  "source_metadata": {}
+}
+
+Normalization Rules:
+
+- Preserve tables, columns, datatypes, constraints, descriptions, and relationships.
+- Preserve primary keys, foreign keys, unique constraints, nullability, length restrictions, and check constraints.
+- Preserve table comments and column comments.
+- Preserve profiling metrics when available.
+- Preserve glossary definitions, classifications, ownership, stewardship, tags, and domain information.
+- Preserve lineage information.
+- Preserve data contract information.
+- Preserve existing validation rules when present.
+- Preserve source-specific metadata that does not map directly to the canonical fields inside source_metadata.
+- Extract semantic_type when strongly implied by metadata.
+- Extract allowed values when explicitly provided.
+- Prefer information preservation over simplification.
+- If information cannot be represented in a standard field, place it in source_metadata rather than discarding it.
+
+Metadata:
+
+{request}
+
+Return only valid JSON.

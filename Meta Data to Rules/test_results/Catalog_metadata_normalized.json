@@ -1,0 +1,51 @@
+{
+  "dataset": {
+    "name": "customer",
+    "description": "Master record for all customers."
+  },
+  "columns": [
+    {
+      "name": "email",
+      "datatype": "",
+      "description": "Primary customer email address.",
+      "semantic_type": "",
+      "constraints": {
+        "nullability": "",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "customer_status",
+      "datatype": "",
+      "description": "Lifecycle status of the customer.",
+      "semantic_type": "",
+      "constraints": {
+        "nullability": "",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    }
+  ],
+  "primary_keys": [],
+  "foreign_keys": [],
+  "relationships": [],
+  "lineage": "",
+  "ownership": "CRM Team",
+  "profiling": {
+    "null_percentage": "",
+    "distinct_values": "",
+    "value_ranges": ""
+  },
+  "business_metadata": {
+    "domain": "Customer Management",
+    "tags": [
+      "gold",
+      "customer-master",
+      "pii"
+    ],
+    "steward": "Marketing Operations"
+  }
+}

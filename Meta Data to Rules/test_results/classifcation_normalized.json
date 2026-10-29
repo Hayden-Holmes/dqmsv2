@@ -1,0 +1,67 @@
+{
+  "dataset": {
+    "name": "customer",
+    "description": ""
+  },
+  "columns": [
+    {
+      "name": "email",
+      "datatype": "",
+      "description": "",
+      "semantic_type": "PII",
+      "constraints": {
+        "nullability": "",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "first_name",
+      "datatype": "",
+      "description": "",
+      "semantic_type": "PII",
+      "constraints": {
+        "nullability": "",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "last_name",
+      "datatype": "",
+      "description": "",
+      "semantic_type": "PII",
+      "constraints": {
+        "nullability": "",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    },
+    {
+      "name": "date_of_birth",
+      "datatype": "",
+      "description": "",
+      "semantic_type": "Sensitive Personal Data",
+      "constraints": {
+        "nullability": "",
+        "length": "",
+        "uniqueness": ""
+      },
+      "comments": ""
+    }
+  ],
+  "primary_keys": [],
+  "foreign_keys": [],
+  "relationships": [],
+  "lineage": "",
+  "ownership": "",
+  "profiling": {
+    "null_percentage": "",
+    "distinct_values": "",
+    "value_ranges": ""
+  },
+  "business_metadata": {}
+}

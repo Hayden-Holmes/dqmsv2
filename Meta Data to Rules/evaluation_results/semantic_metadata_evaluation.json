@@ -1,0 +1,42 @@
+{
+  "overall_score": 85,
+  "source_elements": 5,
+  "preserved_elements": 5,
+  "lost_elements": 0,
+  "preservation_rate": 100,
+  "scores": {
+    "completeness_score": 4,
+    "fidelity_score": 4,
+    "information_preservation_score": 4,
+    "normalization_quality_score": 4,
+    "semantic_extraction_score": 4,
+    "rule_generation_readiness_score": 4
+  },
+  "strengths": [
+    "All source columns are preserved with appropriate normalized representations.",
+    "Key metadata elements such as datatype, semantic_type, constraints, and primary key are included.",
+    "Semantic types are accurately mapped and extracted.",
+    "Constraints such as nullability and uniqueness are specified, enabling rule generation.",
+    "Primary key is correctly identified."
+  ],
+  "weaknesses": [
+    "Descriptions, comments, lineage, ownership, and detailed profiling data are mostly missing or incomplete.",
+    "Length constraints are not specified, which could impact rule generation.",
+    "Foreign keys and relationships are not defined, limiting referential integrity enforcement.",
+    "Some metadata elements like glossary terms and detailed lineage are absent."
+  ],
+  "missing_information": [
+    "Descriptions for columns and dataset",
+    "Comments and detailed lineage information",
+    "Ownership details",
+    "Length constraints for string fields",
+    "Foreign key relationships"
+  ],
+  "incorrect_transformations": [],
+  "rule_generation_gaps": [
+    "Lack of length constraints limits length rule generation.",
+    "Absence of foreign key definitions impairs referential integrity rules.",
+    "Nullability and uniqueness are partially specified, which may affect rule enforcement."
+  ],
+  "summary": "The normalized metadata effectively preserves core structural and semantic information from the source, enabling rule generation for key constraints. However, it lacks some detailed descriptive and lineage metadata, which could enhance completeness and traceability. Overall, it provides a solid foundation for metadata normalization with room for improvement in descriptive and relational details."
+}

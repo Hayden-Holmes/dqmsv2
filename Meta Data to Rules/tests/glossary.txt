@@ -1,0 +1,16 @@
+{
+  "terms": [
+    {
+      "term": "Customer",
+      "definition": "An individual or organization that purchases products."
+    },
+    {
+      "term": "Active Customer",
+      "definition": "A customer currently eligible to place orders."
+    },
+    {
+      "term": "Customer Status",
+      "definition": "Business state of a customer record."
+    }
+  ]
+}

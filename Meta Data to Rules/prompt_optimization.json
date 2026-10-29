@@ -1,0 +1,24 @@
+{
+  "summary": "The current prompt effectively captures primary structural and semantic elements from source metadata, including table and column descriptions, ownership, tags, constraints, and relationships, supporting rule generation and basic data governance. However, it consistently omits critical technical details such as data types, constraints (nullability, length, uniqueness), primary and foreign key relationships, comments, lineage, and profiling metadata. These omissions lead to incomplete metadata representations, limiting fidelity, rule derivation, and comprehensive normalization. Failures often occur because the prompt does not explicitly instruct to extract or preserve these detailed attributes, and the source data's variability in metadata richness causes inconsistent coverage. To improve normalization quality, the prompt should explicitly request extraction and inclusion of data types, constraints, key relationships, comments, lineage, and profiling information, ensuring a more comprehensive and faithful metadata transformation.",
+  "root_causes": [
+    "Lack of explicit instructions to extract detailed data types and constraints.",
+    "Insufficient emphasis on capturing key relationships like primary and foreign keys.",
+    "Absence of directives to preserve comments, lineage, ownership, and profiling metadata.",
+    "Source variability in metadata richness leads to inconsistent extraction."
+  ],
+  "common_failures": [
+    "Missing data type information for columns.",
+    "Omission of primary key and foreign key constraints.",
+    "Lack of detailed comments, lineage, and profiling metadata.",
+    "Inconsistent or absent constraint details such as nullability, length, and uniqueness."
+  ],
+  "recommended_changes": [
+    "Add explicit instructions to extract and include data types for all columns.",
+    "Require capturing primary key and foreign key relationships explicitly.",
+    "Instruct to preserve comments, descriptions, lineage, ownership, and profiling metadata.",
+    "Specify the need to extract constraint details such as nullability, length, and uniqueness.",
+    "Encourage mapping source-specific validation rules and enumerations explicitly.",
+    "Include guidelines for handling source variability to ensure comprehensive metadata coverage."
+  ],
+  "revised_prompt": "Convert the following metadata into the canonical format, ensuring comprehensive coverage of all relevant metadata elements.\n\nCanonical format:\n{\n    \"dataset\": {\n        \"name\": \"\",\n        \"description\": \"\"\n    },\n    \"columns\": [\n        {\n            \"name\": \"\",\n            \"datatype\": \"\",\n            \"description\": \"\",\n            \"semantic_type\": \"\",\n            \"constraints\": {\n                \"nullability\": \"\",\n                \"length\": \"\",\n                \"uniqueness\": \"\"\n            },\n            \"comments\": \"\"\n        }\n    ],\n    \"primary_keys\": [],\n    \"foreign_keys\": [\n        {\n            \"column\": \"\",\n            \"references_table\": \"\",\n            \"references_column\": \"\"\n        }\n    ],\n    \"relationships\": [],\n    \"lineage\": \"\",\n    \"ownership\": \"\",\n    \"profiling\": {\n        \"null_percentage\": \"\",\n        \"distinct_values\": \"\",\n        \"value_ranges\": \"\"\n    },\n    \"business_metadata\": {}\n}\n\nMetadata:\n{request}\n\nEnsure to:\n- Extract and include data types for all columns.\n- Capture primary key and foreign key relationships explicitly.\n- Preserve comments, descriptions, lineage, ownership, and profiling data.\n- Extract constraint details such as nullability, length, and uniqueness.\n- Map source validation rules and enumerations explicitly.\n- Handle source variability to maximize metadata completeness.\n\nReturn only valid JSON matching the above schema."
+}

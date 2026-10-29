@@ -1,0 +1,148 @@
+Example 1 - Unique Identifier
+{
+    Input:
+
+    {
+    "column": "customer_id",
+    "description": "Unique customer identifier",
+    "metrics": {
+        "null_rate": 0.0,
+        "distinct_rate": 1.0
+    }
+    }
+
+    Output:
+
+    {
+    "column": "customer_id",
+    "rule": "Values must not be null",
+    "rationale": "The column is described as a unique customer identifier and should exist for every record."
+    }
+
+    {
+    "column": "customer_id",
+    "rule": "Values should be unique",
+    "rationale": "Identifiers are expected to uniquely identify records and profiling indicates all observed values are distinct."
+    }
+}
+
+Example 2 - Email Address
+{
+    Input:
+    {
+    "column": "email",
+    "description": "Customer email address"
+    }
+
+    Output:
+
+    {
+    "column": "email",
+    "rule": "Values must match a valid email format",
+    "rationale": "The column contains customer email addresses and should conform to a valid email pattern."
+    }
+}
+
+Example 3 - Birth Date
+{
+    Input:
+
+    {
+    "column": "birth_date",
+    "description": "Customer date of birth"
+    }
+
+    Output:
+
+    {
+    "column": "birth_date",
+    "rule": "Date must occur in the past",
+    "rationale": "A date of birth cannot occur in the future."
+    }
+
+    {
+    "column": "birth_date",
+    "rule": "Age should be less than 120 years",
+    "rationale": "Human ages greater than 120 are generally invalid and likely indicate data quality issues."
+    }
+}
+
+Example 4 - Status Column
+{
+    Input:
+
+    {
+    "column": "status",
+    "description": "Customer account status",
+    "metrics": {
+        "top_values": [
+        "Active",
+        "Inactive",
+        "Pending"
+        ]
+    }
+    }
+
+    Output:
+
+    {
+    "column": "status",
+    "rule": "Values should be one of Active, Inactive, or Pending",
+    "rationale": "Profiling indicates these are the expected account status values."
+    }
+}
+
+Example 5 - Monetary Amount
+{
+    Input:  
+
+    {
+    "column": "claim_amount",
+    "description": "Insurance claim payment amount",
+    "metrics": {
+        "min_value": 0,
+        "max_value": 50000
+    }
+    }
+
+    Output:
+
+    {
+    "column": "claim_amount",
+    "rule": "Values should be greater than or equal to 0",
+    "rationale": "Insurance claim payment amounts should not be negative."
+    }
+
+    {
+    "column": "claim_amount",
+    "rule": "Values should be numeric",
+    "rationale": "The column represents a monetary amount."
+    }
+}
+
+Example 6 - State Code
+{
+    Input:
+
+    {
+    "column": "state_code",
+    "description": "Two-letter US state abbreviation",
+    "metrics": {
+        "max_length": 2
+    }
+    }
+
+    Output:
+
+    {
+    "column": "state_code",
+    "rule": "Values should be exactly 2 characters",
+    "rationale": "US state abbreviations are represented using two characters."
+    }
+
+    {
+    "column": "state_code",
+    "rule": "Values should contain only valid US state abbreviations",
+    "rationale": "The column represents US state codes."
+    }
+}
