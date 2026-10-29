@@ -1,0 +1,22 @@
+{
+  "asset_name": "customer",
+  "domain": "Customer Management",
+  "owner": "CRM Team",
+  "steward": "Marketing Operations",
+  "description": "Master record for all customers.",
+  "tags": [
+    "gold",
+    "customer-master",
+    "pii"
+  ],
+  "columns": [
+    {
+      "name": "email",
+      "description": "Primary customer email address."
+    },
+    {
+      "name": "customer_status",
+      "description": "Lifecycle status of the customer."
+    }
+  ]
+}

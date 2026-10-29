@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dqms",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["-m", "uvicorn", "--factory", "dqms.api.app:app_factory", "--app-dir", "src", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}
