@@ -56,7 +56,7 @@ A `RuleSet`: `schema_version`, `dataset`, `fingerprint`, `rules[]`, `findings[]`
 
 ## API
 
-All `/v1` routes need `Authorization: Bearer <key>`. OpenAPI is served at `/docs`.
+All `/v1` routes need your key as `X-API-Key: <key>` (`Authorization: Bearer <key>` also works, but gateways and proxies such as Cloud Shell Web Preview or Cloud Run IAM may claim that header, so prefer `X-API-Key`). OpenAPI is served at `/docs`.
 
 | Endpoint | Purpose |
 |---|---|
@@ -118,6 +118,31 @@ dqms analyze bigquery://my-proj/sales --include 'orders*' 'customers' --profile 
 
 Not offered yet: a per-job *total* row/byte budget (limits are per dataset plus the dataset count).
 
+## Hosting it (Google Cloud Run)
+
+Host it once; then any laptop or pipeline calls it with a URL and a key, or you open the page and paste the key. In Google Cloud Shell, from the repo folder:
+
+```bash
+bash deploy/cloudrun.sh
+```
+
+It enables the needed services, creates a service account that can only read BigQuery, generates an API key (only its fingerprint is stored, in Secret Manager), builds and deploys the container, checks it, and prints the **URL** and the **key** (shown once). Settings go in front of the command: `PROJECT`, `DATA_PROJECTS="a b"` (BigQuery projects it may read), `REGION`, `MAX_BYTES` (bytes-billed cap per profiling query; default 10 GB). Re-running makes a new key and redeploys.
+
+Choices the script makes, and why:
+- **One always-on instance** (`--min-instances 1 --max-instances 1 --no-cpu-throttling`): jobs run in the background after the "accepted" reply and keep their state in memory, so a scaled-to-zero or second instance would lose them. It costs a continuously running small instance; delete it with `gcloud run services delete` when you are done testing. For several replicas, implement `JobStore` against a shared database.
+- **Public URL, protected by the key** (`--allow-unauthenticated`). If your organisation blocks public Cloud Run, use `gcloud run services proxy dqms --port 8080` from Cloud Shell and Web Preview instead.
+- **LLM off** (`DQMS_LLM_MODE=off`) and the BigQuery cost cap set explicitly.
+- BigQuery access is granted at project level (`dataViewer` + `jobUser`); the key's `sources` allowlist (`bigquery://PROJECT/*`) is what narrows what callers can see. Grant dataset-level roles instead if you want the service account itself limited.
+
+Call it from anywhere, no install:
+
+```bash
+curl -s -X POST "$URL/v1/sources/analyze" -H "X-API-Key: $DQMS_KEY" -H "content-type: application/json" \
+  -d '{"source": "bigquery://MY_PROJECT/MY_DATASET/MY_TABLE"}'
+```
+
+Or `pip install dqms` and use `DqmsClient(url, api_key)` / `dqms analyze ... --url $URL` (key in `DQMS_API_KEY`). The script has been syntax-checked and its key generation is tested, but it has **not been run against a real project yet**; expect to fix small things on the first run.
+
 ## Running it
 
 ```bash
@@ -156,7 +181,7 @@ Extending: a new source is one `Connector` (`is_container`, `discover`, `fetch`)
 
 ## Status and known limits
 
-- **Tested** (156 tests): ingestion, every rule tier, sampling rules, merge/reconcile/drift, auth and allowlists, jobs and idempotency, SQLite store, SQL safety, CSV/JSONL/Parquet profiling (Parquet via real pyarrow files), client and CLI exit codes, and a real server process.
+- **Tested** (162 tests): ingestion, every rule tier, sampling rules, merge/reconcile/drift, auth and allowlists, jobs and idempotency, SQLite store, SQL safety, CSV/JSONL/Parquet profiling (Parquet via real pyarrow files), client and CLI exit codes, and a real server process.
 - **Not verified against live services:** BigQuery, Snowflake, Databricks, GCS/S3/Azure and the Azure OpenAI client are exercised through fakes that check our mapping, profiling math and safety controls, **not vendor SQL dialect details**. Expect small fixes on first contact with each (the Databricks constraint/tag queries and BigQuery's `table_constraints` property are the likeliest). The Docker image has not been built.
 - Not yet built: Data Catalog/Dataplex tags and lineage APIs, multi-file (partitioned) datasets as one table, per-user cloud login, webhooks, a shared job store, job retention/purging.
 - `.xlsx`, PDF and other binary uploads are rejected with a message; `legacy/` keeps the original prototype for reference.

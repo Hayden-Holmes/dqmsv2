@@ -1,9 +1,11 @@
-# Build wheels with all cloud extras, then copy only the installed packages into a slim runtime.
+# Install the project and its extras, then copy only the installed packages into a slim runtime.
+# Default extras cover BigQuery and cloud-storage files; add more with --build-arg EXTRAS=bigquery,files,gcs,snowflake
 FROM python:3.12-slim AS build
+ARG EXTRAS=bigquery,files,gcs
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir ".[cloud]"
+RUN pip install --no-cache-dir ".[${EXTRAS}]"
 
 FROM python:3.12-slim
 COPY --from=build /usr/local /usr/local

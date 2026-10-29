@@ -123,7 +123,7 @@ details summary{cursor:pointer;margin-top:10px}
 <script>
 const $ = id => document.getElementById(id);
 let files = [], analysis = null, analyses = [];
-const authHeaders = (extra) => { const k = $('apikey').value.trim(); return Object.assign({}, extra||{}, k ? {Authorization:'Bearer '+k} : {}); };
+const authHeaders = (extra) => { const k = $('apikey').value.trim(); return Object.assign({}, extra||{}, k ? {'X-API-Key':k} : {}); };
 try { $('apikey').value = sessionStorage.getItem('dqms_key') || ''; } catch (e) {}
 $('apikey').onchange = () => { try { sessionStorage.setItem('dqms_key', $('apikey').value); } catch (e) {} };
 

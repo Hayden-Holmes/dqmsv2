@@ -97,7 +97,7 @@ class Authenticator:
         if not authorization:
             if self._allow_anonymous:
                 return ANONYMOUS
-            raise AuthError("missing credentials: send 'Authorization: Bearer <api key>'")
+            raise AuthError("missing credentials: send your key as 'X-API-Key: <key>' (or 'Authorization: Bearer <key>')")
         scheme, _, token = authorization.partition(" ")
         if scheme.lower() != "bearer" or not token.strip():
             raise AuthError("malformed Authorization header; expected 'Bearer <api key>'")

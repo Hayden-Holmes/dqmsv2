@@ -15,6 +15,7 @@ class JsonFormatter(logging.Formatter):
         entry = {
             "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(timespec="milliseconds"),
             "level": record.levelname,
+            "severity": record.levelname,  # the field Cloud Logging uses to colour and filter
             "logger": record.name,
             "message": record.getMessage(),
         }

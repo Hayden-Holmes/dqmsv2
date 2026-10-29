@@ -109,9 +109,12 @@ def create_app(
                                        "ms": round((time.perf_counter() - started) * 1000)})
         return response
 
-    def principal(authorization: str | None = Header(None)) -> Principal:
+    def principal(authorization: str | None = Header(None), x_api_key: str | None = Header(None)) -> Principal:
+        # X-API-Key wins when present: gateways and proxies (Cloud Shell Web Preview, Cloud Run IAM,
+        # IAP) claim the Authorization header for their own credentials and can reject or rewrite it.
+        credential = f"Bearer {x_api_key.strip()}" if x_api_key and x_api_key.strip() else authorization
         try:
-            return auth.authenticate(authorization)
+            return auth.authenticate(credential)
         except AuthError as exc:
             raise HTTPException(401, str(exc), headers={"WWW-Authenticate": "Bearer"}) from exc
 

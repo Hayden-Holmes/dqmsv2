@@ -257,3 +257,25 @@ def test_diff_endpoint(env):
     body = res.json()
     assert res.status_code == 200 and body["changed"] and body["breaking"]
     assert body["old_fingerprint"] != body["new_fingerprint"]
+
+
+# ----------------------- credentials in X-API-Key ----------------------- #
+
+
+def test_x_api_key_header_authenticates_and_is_scoped(env):
+    ci = env.ci["Authorization"].split(" ", 1)[1]
+    ok = env.client.post("/v1/sources/analyze", headers={"X-API-Key": ci}, json={"source": "gs://bucket/exports/a.csv"})
+    assert ok.status_code == 200
+    denied = env.client.post("/v1/sources/analyze", headers={"X-API-Key": ci}, json={"source": "gs://bucket/private/secret.csv"})
+    assert denied.status_code == 403  # the allowlist applies exactly as with Authorization
+
+
+def test_x_api_key_wins_over_authorization_so_proxies_cannot_break_auth(env):
+    ci = env.ci["Authorization"].split(" ", 1)[1]
+    # A proxy that swaps Authorization for its own token must not lock out a valid X-API-Key...
+    both = env.client.get("/v1/explorer/roots", headers={"X-API-Key": ci, "Authorization": "Bearer proxy-token"})
+    assert both.status_code == 200
+    # ...and a wrong X-API-Key is never rescued by a valid Authorization header.
+    wrong = env.client.get("/v1/explorer/roots", headers={"X-API-Key": "dqms_nope", **env.ci})
+    assert wrong.status_code == 401
+    assert env.client.get("/v1/explorer/roots", headers={"X-API-Key": "   "}).status_code == 401
