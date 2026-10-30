@@ -159,8 +159,8 @@ GOVERNANCE_FIELDS = [
     ("data_steward", "string", "Person who answers questions about the data", False, ()),
     ("criticality", "enum", "How damaging bad data in this table is", True, ("low", "medium", "high")),
     ("refresh_cadence", "enum", "How often the table is refreshed", False, ("hourly", "daily", "weekly")),
-    ("retention_days", "integer", "How long rows are kept", False, ()),
-    ("contains_pii", "boolean", "Whether the table holds personal data", True, ()),
+    ("retention_days", "int", "How long rows are kept", False, ()),
+    ("contains_pii", "bool", "Whether the table holds personal data", True, ()),
     ("sla", "string", "Freshness / quality commitment", False, ()),
 ]
 SEMANTICS_FIELDS = [
