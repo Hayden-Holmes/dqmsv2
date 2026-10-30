@@ -66,7 +66,8 @@ All `/v1` routes need your key as `X-API-Key: <key>` (`Authorization: Bearer <ke
 | `GET /v1/jobs/{id}?wait=30` | poll, or long-poll up to 60 s. Status: `queued · running · succeeded · partial · failed`; one result per dataset |
 | `POST /v1/sources/analyze` | one dataset, synchronous |
 | `POST /v1/sources/discover` | list the datasets inside a container (filtered to what your key may read) |
-| `POST /v1/analyze` · `/v1/analyze/json` | analyze uploaded metadata documents (any format) |
+| `POST /v1/analyze/batch` | **data files + their metadata, from any platform**: tables, whole datasets, or metadata describing several tables (see below) |
+| `POST /v1/analyze` · `/v1/analyze/json` | analyze one table's uploaded metadata documents (any format) |
 | `POST /v1/diff` · `POST /v1/export/sql` | drift between rule sets · SQL violation counts (BigQuery, Postgres) |
 | `GET /healthz` · `GET /readyz` | liveness (no auth) · readiness (job store usable) |
 
@@ -95,11 +96,55 @@ How it is enforced:
 
 - **One gate.** Only `LLMGateway` holds a client. It enforces the mode and the *purpose* of each call, refuses oversize payloads (no truncation), redacts emails, SSNs, card numbers, long account numbers, cloud keys and `password=…` strings, and logs every call (purpose, size, hash, redaction counts) **never its content**.
 - **Allowlisted payload.** The prompt is built field by field (`rules/llm.py: structural_view`), so a field added to a model later cannot leak by default.
-- **Data is not metadata.** A CSV/JSONL/JSON array/markdown table whose header is the columns (`id, name, email`) is recognized as records and refused, rather than having its values turned into "columns". Uploads are for schemas, catalogs and contracts; to profile data, point the service at where it lives.
+- **Data is not metadata.** On the metadata-only path, a CSV/JSONL/JSON array/markdown table whose header is the columns (`id, name, email`) is recognized as records and refused, rather than having its values turned into "columns" or sent as documents. Data takes a different, explicit route (*Data + metadata uploads*): it is profiled in the service's memory into aggregates and never reaches a model.
 - **A request can only narrow** the server's mode (`use_llm=false`), never widen it. `/healthz` reports the effective `llm_mode`. Misconfiguring `DQMS_LLM_MODE` stops startup instead of being guessed at; a generic `BASE_URL` variable no longer enables anything.
 - **Tests plant canary values** in value lists, patterns, descriptions and uploaded files and assert none ever appears in a prompt (and that statistics *do*); each control is mutation-checked (removing it makes a test fail).
 
 What code cannot prove: the row-data guard is a heuristic backstop, and redaction is pattern-based. For a hard guarantee, run `off` and also deny the service network egress to any model endpoint (VPC/firewall rule); then it cannot reach one even if misconfigured.
+
+## Data + metadata uploads (any platform, no cloud access)
+
+For data that is not in a cloud warehouse: export a table from anywhere (Oracle, SQL Server, a spreadsheet, a data lake) and upload it with its description.
+
+| You upload | You get |
+|---|---|
+| `orders.csv` + `orders.sql` | rules for `orders`, from the metadata, checked against the data |
+| `orders.csv`, `customers.parquet` + `schema.sql` (describes both tables) | one analysis per table, each paired with its data by file name |
+| `schema.sql` / a catalog or information-schema CSV describing several tables | an analysis per table, from metadata alone |
+| a data file with no metadata | types and rules inferred from the data alone |
+
+In the page, drop everything into the same box. From code or the CLI:
+
+```bash
+dqms analyze orders.csv customers.csv schema.sql --out rules/
+curl -X POST "$URL/v1/analyze/batch" -H "X-API-Key: $KEY" -F files=@orders.csv -F files=@schema.sql
+```
+
+- **Classified by content, paired by name.** A CSV whose header *describes columns* (`column_name, data_type, …`) is metadata; one whose header *is* the columns is data. `orders.csv` pairs with the table `orders` (case- and schema-insensitive). A single data file with a single table pairs even if the names differ. With several files a name-less match would be a guess, so unmatched files are reported with the table names found; override with `pairs` (`{"file.csv": "table"}`).
+- **Metadata is authoritative; data is checked against it.** Types the metadata lacks are inferred from the data; columns only in the data are added and flagged (`column_not_in_metadata`); described columns missing from the data are flagged (`column_missing_from_data`); a column declared numeric/date whose data holds text is flagged (`type_mismatch`).
+- **Privacy.** Data is read into memory, summarized (nulls, distinct, min/max, lengths), and discarded; rows are not stored, logged, returned, or sent to an LLM. Value lists are returned only if you ask (`include_values`), and are never sent to a model. Tests plant canary values in uploaded data and assert none appear in a prompt, a response or a log line.
+- **Size.** The hosted request limit is about 32 MB, so the batch endpoint accepts 30 MB in total. The page sends large CSV/TSV/JSONL files as a sample of their first rows and the profile is marked `sampled` (so it claims no uniqueness or true extremes). Parquet cannot be cut, so a Parquet file too large for the limit must be pointed at in cloud storage or sent as a sample.
+
+## Demo data with a Knowledge Catalog (BigQuery)
+
+`deploy/seed_catalog_demo.py` builds a small BigQuery dataset plus the catalog around it, so you can see
+how metadata-driven rules look when the metadata is rich. Synthetic data only.
+
+```bash
+pip install google-cloud-bigquery
+gcloud services enable dataplex.googleapis.com
+python deploy/seed_catalog_demo.py --project MY_PROJECT --dry-run   # show the plan
+python deploy/seed_catalog_demo.py --project MY_PROJECT             # build it
+python deploy/seed_catalog_demo.py --project MY_PROJECT --teardown  # remove it
+```
+
+It creates four related tables (`customers`, `products`, `orders`, `order_items`) with descriptions, labels,
+primary/foreign keys and an array column; two aspect types (table governance, column semantics) attached to every
+table and column; and a business glossary. `--policy-tags` adds policy tags on confidential columns. It also plants
+known data problems (nulls, malformed emails, orphan keys, future dates, ...) and lists them at the end and in
+`dqms_demo_manifest.json`, so you can check that the generated rules catch them.
+The catalog calls use the Dataplex REST API directly; each catalog step reports its own failure and the data is
+still built.
 
 ## Controlling scope
 
@@ -126,7 +171,7 @@ Host it once; then any laptop or pipeline calls it with a URL and a key, or you 
 bash deploy/cloudrun.sh
 ```
 
-It enables the needed services, creates a service account that can only read BigQuery, generates an API key (only its fingerprint is stored, in Secret Manager), builds and deploys the container, checks it, and prints the **URL** and the **key** (shown once). Settings go in front of the command: `PROJECT`, `DATA_PROJECTS="a b"` (BigQuery projects it may read), `REGION`, `MAX_BYTES` (bytes-billed cap per profiling query; default 10 GB). Re-running makes a new key and redeploys.
+It enables the needed services, creates a service account that can only read BigQuery, generates an API key (only its fingerprint is stored, in Secret Manager), builds and deploys the container, checks it, and prints the **URL** and the **key** (shown once). Settings go in front of the command: `PROJECT`, `DATA_PROJECTS="a b"` (BigQuery projects it may read), `REGION`, `MAX_BYTES` (bytes-billed cap per profiling query; default 10 GB), `MAX_DATASETS` (most tables per run; default 100). Re-running makes a new key and redeploys.
 
 Choices the script makes, and why:
 - **One always-on instance** (`--min-instances 1 --max-instances 1 --no-cpu-throttling`): jobs run in the background after the "accepted" reply and keep their state in memory, so a scaled-to-zero or second instance would lose them. It costs a continuously running small instance; delete it with `gcloud run services delete` when you are done testing. For several replicas, implement `JobStore` against a shared database.
@@ -181,7 +226,7 @@ Extending: a new source is one `Connector` (`is_container`, `discover`, `fetch`)
 
 ## Status and known limits
 
-- **Tested** (162 tests): ingestion, every rule tier, sampling rules, merge/reconcile/drift, auth and allowlists, jobs and idempotency, SQLite store, SQL safety, CSV/JSONL/Parquet profiling (Parquet via real pyarrow files), client and CLI exit codes, and a real server process.
+- **Tested** (199 tests): ingestion, every rule tier, sampling rules, merge/reconcile/drift, auth and allowlists, jobs and idempotency, SQLite store, SQL safety, CSV/JSONL/Parquet profiling (Parquet via real pyarrow files), client and CLI exit codes, and a real server process.
 - **Not verified against live services:** BigQuery, Snowflake, Databricks, GCS/S3/Azure and the Azure OpenAI client are exercised through fakes that check our mapping, profiling math and safety controls, **not vendor SQL dialect details**. Expect small fixes on first contact with each (the Databricks constraint/tag queries and BigQuery's `table_constraints` property are the likeliest). The Docker image has not been built.
 - Not yet built: Data Catalog/Dataplex tags and lineage APIs, multi-file (partitioned) datasets as one table, per-user cloud login, webhooks, a shared job store, job retention/purging.
 - `.xlsx`, PDF and other binary uploads are rejected with a message; `legacy/` keeps the original prototype for reference.

@@ -185,3 +185,16 @@ def test_browse_requires_auth_and_valid_uris(api):
 
 def test_healthz_advertises_the_dataset_cap(api):
     assert api.http.get("/healthz").json()["max_datasets"] >= 1
+
+
+def test_adding_a_whole_location_expands_to_only_what_the_key_may_read(api):
+    # "everything here" at the project root, with a key that only allows the sales dataset
+    plan = api.http.post("/v1/plan", headers=api.headers, json={"sources": ["bigquery://proj"]})
+    assert plan.status_code == 200, plan.text
+    body = plan.json()
+    assert [d["uri"] for d in body["datasets"]] == ["bigquery://proj/sales/orders", "bigquery://proj/sales/items"]
+    assert body["within_limit"] and body["excluded"] == 0  # 'hr' and the view are neither listed nor counted
+    # ...and it cannot be used to reach a location the key has no business with
+    assert api.http.post("/v1/plan", headers=api.headers, json={"sources": ["bigquery://proj/hr"]}).status_code == 403
+    job = api.http.post("/v1/jobs", headers=api.headers, json={"sources": ["bigquery://proj"]})
+    assert job.status_code == 202

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from dqms.connectors.base import BrowseResult, ConnectorError, ConnectorRegistry, DatasetRef, ProfileOptions
 from dqms.llm.client import LLMClient
 from dqms.llm.gateway import LLMMode, Purpose, build_gateway
-from dqms.models import Metadata, Profile, RuleSet
+from dqms.models import Finding, Metadata, Profile, RuleSet
 from dqms.normalize.documents import Document, SourceDoc, ingest
 from dqms.normalize.universal import LLMNormalizer
 from dqms.rules.engine import EngineOptions, RuleEngine
@@ -51,6 +51,11 @@ class RuleService:
         self.connectors = connectors or ConnectorRegistry()
 
     @property
+    def normalizer(self):
+        """The LLM document normalizer, or None unless the server allows documents to be sent (mode `full`)."""
+        return self._normalizer
+
+    @property
     def llm_mode(self) -> LLMMode:
         return self._gateway.mode if self._gateway else LLMMode.OFF
 
@@ -82,7 +87,8 @@ class RuleService:
         if connector.is_container(uri):
             raise ConnectorError(f"'{source}' names a group of datasets; use discovery or a job to expand it")
         snapshot = connector.fetch(uri, profile or ProfileOptions())
-        analysis = self._finish(snapshot.metadata, snapshot.profile, options, [], [])
+        findings = [Finding(kind="profiling_failed", message=w) for w in snapshot.warnings]
+        analysis = self._finish(snapshot.metadata, snapshot.profile, options, findings, [])
         analysis.source = source
         return analysis
 
@@ -97,11 +103,13 @@ class RuleService:
         return connector.browse(uri, limit)
 
     def analyze_models(
-        self, metadata: Metadata, profile: Profile | None = None, options: EngineOptions | None = None
+        self, metadata: Metadata, profile: Profile | None = None, options: EngineOptions | None = None,
+        findings: list[Finding] | None = None,
     ) -> Analysis:
-        return self._finish(metadata, profile, options, [], [])
+        return self._finish(metadata, profile, options, findings or [], [])
 
     def _finish(self, metadata, profile, options, findings, reports) -> Analysis:
+        findings = list(findings) + [Finding(kind="profiling_incomplete", message=n) for n in (profile.notes if profile else [])]
         ruleset = self._engine.generate(metadata, profile, options, findings)
         ruleset.unrecognized_documents = sum(1 for r in reports if r.route == "unrecognized")
         return Analysis(

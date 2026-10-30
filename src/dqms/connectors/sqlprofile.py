@@ -90,45 +90,76 @@ def profile_table(
 
     plan = [c for c in columns if (c.base_type or "") not in _COMPLEX]
     profile = Profile(total_rows=total, sampled=sampled)
+    first_error: ConnectorError | None = None
+
+    def run(chunk: list[Column]) -> None:
+        n, stats = _profile_chunk(warehouse, dialect, source, chunk, options, sampled)
+        if profile.row_count is None:
+            profile.row_count = n
+        profile.columns.extend(stats)
 
     for start in range(0, len(plan), CHUNK):
         chunk = plan[start : start + CHUNK]
-        selects, meta = ["COUNT(*) AS _rows"], []
-        for i, col in enumerate(chunk):
-            q, family = dialect.quote_column(col.name), type_family(col)
-            selects += [f"COUNTIF({q} IS NULL) AS n{i}" if dialect.name == "bigquery"
-                        else f"SUM(CASE WHEN {q} IS NULL THEN 1 ELSE 0 END) AS n{i}",
-                        f"COUNT(DISTINCT {q}) AS d{i}"]
-            if family in {"numeric", "date", "timestamp"}:
-                selects += [f"MIN({q}) AS lo{i}", f"MAX({q}) AS hi{i}"]
-            elif family == "string":
-                selects += [f"MIN(LENGTH({q})) AS minl{i}", f"MAX(LENGTH({q})) AS maxl{i}"]
-            meta.append((i, col, family))
-
-        row = _row(warehouse.query(f"SELECT {', '.join(selects)} FROM {source}"))
-        n = int(row["_rows"] or 0)
-        if profile.row_count is None:
-            profile.row_count = n
-        for i, col, family in meta:
-            nulls, distinct = int(row[f"n{i}"] or 0), int(row[f"d{i}"] or 0)
-            stats = ColumnProfile(
-                column=col.name,
-                null_rate=(nulls / n) if n else None,
-                distinct_count=distinct,
-                distinct_rate=(distinct / (n - nulls)) if n - nulls > 0 else None,
-            )
-            if family in {"numeric", "date", "timestamp"}:
-                stats.min_value, stats.max_value = _plain(row[f"lo{i}"]), _plain(row[f"hi{i}"])
-            elif family == "string":
-                stats.min_length, stats.max_length = _int(row[f"minl{i}"]), _int(row[f"maxl{i}"])
-                if options.include_values and not sampled and 0 < distinct <= MAX_ENUM:
-                    q = dialect.quote_column(col.name)
-                    values = warehouse.query(
-                        f"SELECT {q} AS v FROM {source} WHERE {q} IS NOT NULL GROUP BY {q} ORDER BY {q} LIMIT {MAX_ENUM}"
-                    )
-                    stats.top_values = [str(_lower(r)["v"]) for r in values]
-            profile.columns.append(stats)
+        try:
+            run(chunk)
+        except ConnectorError as error:
+            first_error = first_error or error
+            if len(chunk) == 1:
+                profile.notes.append(f"column {chunk[0].name} was not profiled: {error}")
+                continue
+            # One unsupported column must not lose the table: retry one column at a time.
+            failed = 0
+            for col in chunk:
+                try:
+                    run([col])
+                except ConnectorError as col_error:
+                    failed += 1
+                    profile.notes.append(f"column {col.name} was not profiled: {col_error}")
+            if failed == len(chunk):
+                raise error  # every column failed, so the cause is systemic (cost cap, permissions): do not hide it
+    if plan and not profile.columns:
+        raise first_error or ConnectorError("no column could be profiled")
     return profile
+
+
+def _profile_chunk(
+    warehouse: Warehouse, dialect: SqlDialect, source: str, chunk: list[Column], options: ProfileOptions, sampled: bool,
+) -> tuple[int, list[ColumnProfile]]:
+    selects, meta = ["COUNT(*) AS _rows"], []
+    for i, col in enumerate(chunk):
+        q, family = dialect.quote_column(col.name), type_family(col)
+        selects += [f"COUNTIF({q} IS NULL) AS n{i}" if dialect.name == "bigquery"
+                    else f"SUM(CASE WHEN {q} IS NULL THEN 1 ELSE 0 END) AS n{i}",
+                    f"COUNT(DISTINCT {q}) AS d{i}"]
+        if family in {"numeric", "date", "timestamp"}:
+            selects += [f"MIN({q}) AS lo{i}", f"MAX({q}) AS hi{i}"]
+        elif family == "string":
+            selects += [f"MIN(LENGTH({q})) AS minl{i}", f"MAX(LENGTH({q})) AS maxl{i}"]
+        meta.append((i, col, family))
+
+    row = _row(warehouse.query(f"SELECT {', '.join(selects)} FROM {source}"))
+    n = int(row["_rows"] or 0)
+    out: list[ColumnProfile] = []
+    for i, col, family in meta:
+        nulls, distinct = int(row[f"n{i}"] or 0), int(row[f"d{i}"] or 0)
+        stats = ColumnProfile(
+            column=col.name,
+            null_rate=(nulls / n) if n else None,
+            distinct_count=distinct,
+            distinct_rate=(distinct / (n - nulls)) if n - nulls > 0 else None,
+        )
+        if family in {"numeric", "date", "timestamp"}:
+            stats.min_value, stats.max_value = _plain(row[f"lo{i}"]), _plain(row[f"hi{i}"])
+        elif family == "string":
+            stats.min_length, stats.max_length = _int(row[f"minl{i}"]), _int(row[f"maxl{i}"])
+            if options.include_values and not sampled and 0 < distinct <= MAX_ENUM:
+                q = dialect.quote_column(col.name)
+                values = warehouse.query(
+                    f"SELECT {q} AS v FROM {source} WHERE {q} IS NOT NULL GROUP BY {q} ORDER BY {q} LIMIT {MAX_ENUM}"
+                )
+                stats.top_values = [str(_lower(r)["v"]) for r in values]
+        out.append(stats)
+    return n, out
 
 
 def _lower(row: dict[str, Any]) -> dict[str, Any]:

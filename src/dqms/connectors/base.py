@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
 from pydantic import BaseModel
@@ -50,6 +50,7 @@ class BrowseResult(BaseModel):
 class Snapshot:
     metadata: Metadata
     profile: Profile | None = None
+    warnings: list[str] = field(default_factory=list)  # reported as findings; never fatal
 
 
 class Connector(Protocol):

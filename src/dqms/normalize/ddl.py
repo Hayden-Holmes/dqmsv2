@@ -39,25 +39,35 @@ def looks_like_ddl(text: str) -> bool:
 
 
 def parse_ddl(text: str) -> Metadata | None:
-    match = _CREATE.search(text)
-    if not match:
-        return None
-    body, _ = _balanced_body(text, match.end() - 1)
-    table = _bare(match.group("name"))
-    meta = Metadata(name=table)
+    """The first table in the text (kept for single-table callers)."""
+    tables = parse_ddl_all(text)
+    return tables[0] if tables else None
 
-    for item in _split_top_level(body):
-        _apply_item(meta, item.strip())
 
+def parse_ddl_all(text: str) -> list[Metadata]:
+    """Every CREATE TABLE in the text, with COMMENT ON statements applied to the right table."""
+    tables: list[Metadata] = []
+    for match in _CREATE.finditer(text):
+        body, _ = _balanced_body(text, match.end() - 1)
+        meta = Metadata(name=_bare(match.group("name")))
+        for item in _split_top_level(body):
+            _apply_item(meta, item.strip())
+        tables.append(meta)
+
+    by_key = {t.name.split(".")[-1].lower(): t for t in tables}
     for comment in _COMMENT.finditer(text):
         content = comment.group("text").replace("''", "'")
-        target = _bare(comment.group("target"))
+        parts = _bare(comment.group("target")).split(".")
         if comment.group("kind").upper() == "TABLE":
-            meta.description = content
-        else:
-            col_name = target.split(".")[-1]
-            meta.ensure_column(col_name).description = content
-    return meta
+            table = by_key.get(parts[-1].lower())
+            if table is not None:
+                table.description = content
+            continue
+        # COLUMN: [schema.]table.column. A bare column name is only unambiguous for a single table.
+        table = by_key.get(parts[-2].lower()) if len(parts) >= 2 else (tables[0] if len(tables) == 1 else None)
+        if table is not None:
+            table.ensure_column(parts[-1]).description = content
+    return tables
 
 
 def _apply_item(meta: Metadata, item: str) -> None:

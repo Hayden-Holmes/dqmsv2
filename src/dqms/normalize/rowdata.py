@@ -19,8 +19,8 @@ from dqms.normalize.ddl import looks_like_ddl
 MIN_RECORDS = 3
 ROW_DATA_MESSAGE = (
     "this looks like row data (records), not metadata, so it was not processed or sent to any LLM. "
-    "Uploads are for schemas, catalogs and contracts. To profile data, point the service at where "
-    "it lives (e.g. gs://..., bigquery://...) so only aggregates are computed in place."
+    "To analyze data, upload it together with its metadata (data + metadata upload, matched by file name), "
+    "or point the service at where it lives (e.g. gs://..., bigquery://...); either way only aggregates are computed."
 )
 
 _IDENTIFIERS = {"name", "column", "column_name", "field", "field_name", "attribute", "col"}

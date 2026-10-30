@@ -368,3 +368,91 @@ def test_sampled_profile_never_claims_uniqueness_ranges_or_closed_value_sets():
     sampled = kinds(part)
     assert not {t for t, _ in sampled} & {RuleType.UNIQUE, RuleType.RANGE, RuleType.ACCEPTED_VALUES}
     assert all(r.confidence <= 0.4 for r in part if r.tier is Tier.OBSERVED and r.type is RuleType.NOT_NULL)
+
+
+# ---------------- tables that fail must not take the run down ---------------- #
+
+
+def test_repeated_bigquery_columns_are_arrays_and_never_sent_to_distinct_or_length():
+    table = SimpleNamespace(table_id="events", description=None, labels={}, table_constraints=None, schema=[
+        bq_field("id", "INTEGER", "REQUIRED"), bq_field("tags", "STRING", "REPEATED"), bq_field("note", "STRING")])
+    client = FakeBigQueryClient(table, [("COUNT(*) AS n FROM", [{"n": 10}]), ("AS _rows", [
+        {"_rows": 10, "n0": 0, "d0": 10, "lo0": 1, "hi0": 5, "n1": 0, "d1": 3, "minl1": 1, "maxl1": 2}])])
+    snap = BigQueryConnector(client_factory=lambda p: client, max_bytes_billed=0).fetch(
+        parse_source("bigquery://p/d/events"), PROFILE)
+    assert {c.name: c.datatype for c in snap.metadata.columns} == {"id": "INTEGER", "tags": "ARRAY", "note": "STRING"}
+    query = next(s for s in client.sql if "AS _rows" in s)
+    assert "`tags`" not in query  # COUNT(DISTINCT array) / LENGTH(array) are invalid in BigQuery
+    assert snap.profile.column("tags") is None and snap.profile.column("id") is not None
+
+
+class PickyWarehouse:
+    """Rejects any query that mentions a 'poison' column, like a warehouse rejecting an unsupported type."""
+
+    def __init__(self, poison=(), systemic=None):
+        self.poison, self.systemic, self.sql = poison, systemic, []
+
+    def query(self, sql):
+        self.sql.append(sql)
+        if "COUNT(*) AS n FROM" in sql:
+            return [{"n": 100}]
+        if self.systemic:
+            raise ConnectorError(self.systemic)
+        cols = [c for c in ("a", "b", "c") if f"`{c}`" in sql]
+        bad = [c for c in cols if c in self.poison]
+        if bad:
+            raise ConnectorError(f"unsupported type in column {bad[0]}")
+        row = {"_rows": 100}
+        for i, c in enumerate(cols):
+            row.update({f"n{i}": 0, f"d{i}": 100, f"lo{i}": 1, f"hi{i}": 9})
+        return [row]
+
+
+def three_columns():
+    return [Column(name=n, datatype="INTEGER") for n in ("a", "b", "c")]
+
+
+def test_one_unprofilable_column_does_not_lose_the_table():
+    wh = PickyWarehouse(poison={"b"})
+    profile = profile_table(wh, BIGQUERY, ("p", "d", "t"), three_columns(), PROFILE)
+    assert [c.column for c in profile.columns] == ["a", "c"]  # b dropped, the rest kept
+    assert profile.notes == ["column b was not profiled: unsupported type in column b"]
+    assert profile.row_count == 100
+
+
+def test_a_systemic_failure_is_not_hidden_by_the_per_column_retry():
+    wh = PickyWarehouse(systemic="Query exceeded limit for bytes billed")
+    with pytest.raises(ConnectorError, match="bytes billed"):
+        profile_table(wh, BIGQUERY, ("p", "d", "t"), three_columns(), PROFILE)
+    assert len(wh.sql) <= 1 + 1 + 3  # the count, the chunk, then one retry per column: bounded, not a storm
+
+
+def test_profiling_failure_still_returns_schema_rules_and_a_visible_finding():
+    table = SimpleNamespace(table_id="t", description=None, labels={}, table_constraints=None,
+                            schema=[bq_field("id", "INTEGER", "REQUIRED"), bq_field("note", "STRING")])
+
+    class Exploding(FakeBigQueryClient):
+        def query(self, sql, job_config=None):
+            raise RuntimeError("Query exceeded limit for bytes billed")
+
+    registry = ConnectorRegistry()
+    registry.register(BigQueryConnector(client_factory=lambda p: Exploding(table), max_bytes_billed=0))
+    analysis = RuleService(connectors=registry).analyze_source("bigquery://p/d/t", PROFILE)
+    assert analysis.profile is None
+    assert any(r.type is RuleType.NOT_NULL and r.columns == ["id"] for r in analysis.ruleset.rules)  # schema rules survive
+    finding = next(f for f in analysis.ruleset.findings if f.kind == "profiling_failed")
+    assert "bytes billed" in finding.message
+
+
+def test_skipped_columns_are_reported_as_findings():
+    table = SimpleNamespace(table_id="t", description=None, labels={}, table_constraints=None,
+                            schema=[bq_field("a", "INTEGER"), bq_field("b", "INTEGER")])
+    client = FakeBigQueryClient(table)
+    wh = PickyWarehouse(poison={"b"})
+    # drive the service with the picky warehouse by routing the client's queries through it
+    client.query = lambda sql, job_config=None: SimpleNamespace(result=lambda timeout=None: wh.query(sql))
+    registry = ConnectorRegistry()
+    registry.register(BigQueryConnector(client_factory=lambda p: client, max_bytes_billed=0))
+    analysis = RuleService(connectors=registry).analyze_source("bigquery://p/d/t", PROFILE)
+    assert [c.column for c in analysis.profile.columns] == ["a"]
+    assert any(f.kind == "profiling_incomplete" and "column b" in f.message for f in analysis.ruleset.findings)

@@ -119,9 +119,11 @@ class ColumnProfile(BaseModel):
 
 
 class Profile(BaseModel):
+    table: str | None = None  # which table the statistics describe, when the source says
     row_count: int | None = None  # rows actually profiled (the sample size when sampled)
     total_rows: int | None = None  # rows in the source, when known and different
     sampled: bool = False  # a sample cannot prove uniqueness or true min/max
+    notes: list[str] = Field(default_factory=list)  # e.g. columns that could not be profiled, and why
     columns: list[ColumnProfile] = Field(default_factory=list)
 
     def column(self, name: str) -> ColumnProfile | None:

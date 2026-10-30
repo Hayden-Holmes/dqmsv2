@@ -23,7 +23,7 @@ from dqms.models import (
     Profile,
     TableRef,
 )
-from dqms.normalize.ddl import looks_like_ddl, parse_ddl
+from dqms.normalize.ddl import looks_like_ddl, parse_ddl_all
 from dqms.normalize.profile import looks_like_profile, normalize_profile
 from dqms.normalize.rowdata import ROW_DATA_MESSAGE, looks_like_row_data
 
@@ -84,6 +84,13 @@ def ingest(documents: list[Document | SourceDoc], fallback: Fallback | None = No
 
 
 def _ingest_one(src: SourceDoc, fallback: Fallback | None):
+    if isinstance(src.content, str) and looks_like_ddl(src.content):
+        names = [t.name for t in parse_ddl_all(src.content)]
+        if len(names) > 1:
+            return None, None, "unrecognized", (
+                f"describes {len(names)} tables ({', '.join(names[:4])}{'…' if len(names) > 4 else ''}); "
+                "use the data + metadata upload (batch) so each table is analyzed"
+            )
     parsed = _parse(src.content)
     if isinstance(parsed, Metadata):
         return parsed, None, "deterministic", "DDL"
@@ -93,7 +100,7 @@ def _ingest_one(src: SourceDoc, fallback: Fallback | None):
         partial = _to_partial(parsed)
         if partial is not None:
             return partial, None, "deterministic", "recognized schema"
-    text = src.content if isinstance(src.content, str) else json.dumps(src.content)
+    text = src.content if isinstance(src.content, str) else json.dumps(src.content, default=str)
     if looks_like_row_data(text):
         return None, None, "unrecognized", ROW_DATA_MESSAGE
     if fallback is not None:
@@ -108,12 +115,124 @@ def _ingest_one(src: SourceDoc, fallback: Fallback | None):
 
 
 # --------------------------------------------------------------------------- #
+# Several tables at once (dataset-level metadata)
+# --------------------------------------------------------------------------- #
+
+
+def table_key(name: str) -> str:
+    """Case-insensitive identity of a table: 'Public.\"Orders\"' and 'orders' are the same table."""
+    return name.split(".")[-1].strip().strip('"`').lower()
+
+
+@dataclass
+class TableSet:
+    """Metadata grouped by table. A document that names no table is attached to the only table, if there is exactly one."""
+
+    tables: dict[str, Metadata] = field(default_factory=dict)  # table_key -> merged metadata, in order of appearance
+    profiles: dict[str, Profile] = field(default_factory=dict)  # statistics found in documents, by table_key
+    loose_profile: Profile | None = None  # statistics that name no table
+    findings: list[Finding] = field(default_factory=list)
+    reports: list[DocReport] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+def ingest_tables(documents: list[Document | SourceDoc], fallback: Fallback | None = None) -> TableSet:
+    result = TableSet()
+    grouped: dict[str, list[Metadata]] = {}
+    loose: list[Metadata] = []
+    loose_sources: list[str] = []
+    profiles: list[Profile] = []
+
+    for i, raw in enumerate(documents, start=1):
+        src = raw if isinstance(raw, SourceDoc) else SourceDoc(f"document-{i}", raw)
+        pieces = _expand(src)
+        outcomes = [_ingest_one(piece, fallback) for piece in pieces]
+        useful = [o for o in outcomes if o[0] is not None or o[1] is not None]
+        if useful:
+            route, detail = useful[0][2], useful[0][3]
+            if len(pieces) > 1:
+                detail = f"{len(useful)} tables"
+            result.reports.append(DocReport(src.name, route, detail))
+        else:
+            result.reports.append(DocReport(src.name, outcomes[0][2], outcomes[0][3]))
+        for partial, profile, _route, _detail in outcomes:
+            if profile is not None:
+                profiles.append(profile)
+            if partial is None:
+                continue
+            if partial.name:
+                grouped.setdefault(table_key(partial.name), []).append(partial)
+            else:
+                loose.append(partial)
+                loose_sources.append(src.name)
+
+    for key, parts in grouped.items():
+        merged = Metadata(name="")
+        for part in parts:
+            merge_metadata(merged, part, result.findings)
+        result.tables[key] = merged
+
+    if loose:
+        if len(result.tables) == 1:
+            only = next(iter(result.tables.values()))
+            for part in loose:
+                merge_metadata(only, part, result.findings)
+        elif not result.tables:
+            merged = Metadata(name="")
+            for part in loose:
+                merge_metadata(merged, part, result.findings)
+            result.tables[""] = merged  # the caller names it (e.g. from the data file)
+        else:
+            names = ", ".join(dict.fromkeys(loose_sources))
+            result.notes.append(
+                f"{names} does not say which table it describes, and there are {len(result.tables)} tables, so it was not applied"
+            )
+
+    for profile in profiles:
+        if profile.table and table_key(profile.table) in result.tables:
+            result.profiles.setdefault(table_key(profile.table), profile)
+        elif profile.table:
+            result.notes.append(f"statistics for table '{profile.table}' were ignored: no metadata for that table")
+        elif len(result.tables) == 1:
+            result.profiles.setdefault(next(iter(result.tables)), profile)
+        else:
+            result.loose_profile = result.loose_profile or profile
+    return result
+
+
+def _expand(src: SourceDoc) -> list[SourceDoc]:
+    """Split one input into one piece per table when it describes several."""
+    content = src.content
+    if isinstance(content, str) and looks_like_ddl(content):
+        tables = parse_ddl_all(content)
+        return [SourceDoc(f"{src.name}:{t.name}", t) for t in tables] if len(tables) > 1 else [src]
+    if not isinstance(content, dict):
+        return [src]
+
+    tables = content.get("tables")
+    if isinstance(tables, list) and tables and all(isinstance(t, dict) for t in tables):
+        return [SourceDoc(f"{src.name}[{i}]", t) for i, t in enumerate(tables, start=1)]
+
+    rows = content.get("columns")
+    if isinstance(rows, list) and rows and all(isinstance(r, dict) for r in rows):
+        key = next((k for k in ("table_name", "table") if any(k in r for r in rows)), None)
+        if key and not content.get(key):  # a catalog/information-schema export: one row per column, many tables
+            groups: dict[str, list[dict[str, Any]]] = {}
+            for row in rows:
+                groups.setdefault(str(row.get(key) or ""), []).append(row)
+            if len(groups) > 1 or "" not in groups:
+                return [SourceDoc(f"{src.name}:{name or 'unnamed'}", {**content, "table_name": name, "columns": group})
+                        for name, group in groups.items()]
+    return [src]
+
+
+# --------------------------------------------------------------------------- #
 # Parsing / sniffing
 # --------------------------------------------------------------------------- #
 
 
-def _parse(raw: Document) -> dict[str, Any] | Metadata | None:
-    if isinstance(raw, dict):
+def _parse(raw: Document | Metadata) -> dict[str, Any] | Metadata | None:
+    if isinstance(raw, (dict, Metadata)):
         return raw
     if not isinstance(raw, str) or not raw.strip():
         return None
@@ -123,7 +242,8 @@ def _parse(raw: Document) -> dict[str, Any] | Metadata | None:
     except json.JSONDecodeError:
         pass
     if looks_like_ddl(raw):
-        return parse_ddl(raw)
+        tables = parse_ddl_all(raw)
+        return tables[0] if tables else None
     return None
 
 
@@ -341,4 +461,4 @@ def _as_bool(value: Any) -> bool | None:
     return None
 
 
-__all__ = ["IngestResult", "SourceDoc", "DocReport", "Document", "Fallback", "ingest", "merge_metadata", "slug"]
+__all__ = ["IngestResult", "SourceDoc", "DocReport", "Document", "Fallback", "TableSet", "ingest", "ingest_tables", "merge_metadata", "slug", "table_key"]

@@ -9,6 +9,7 @@
 #     DATA_PROJECTS="a b"        BigQuery projects it may read          (default: PROJECT)
 #     REGION=europe-west1        where it runs                          (default: us-central1)
 #     MAX_BYTES=10000000000      most one BigQuery profiling query may bill (default: 10 GB)
+#     MAX_DATASETS=100           most tables one run may analyze         (default: 100)
 #
 # Re-running makes a NEW key (the old one stops working) and redeploys the latest code.
 set -euo pipefail
@@ -18,6 +19,7 @@ DATA_PROJECTS="${DATA_PROJECTS:-$PROJECT}"
 REGION="${REGION:-us-central1}"
 SERVICE="${SERVICE:-dqms}"
 MAX_BYTES="${MAX_BYTES:-10000000000}"
+MAX_DATASETS="${MAX_DATASETS:-100}"
 SECRET="${SECRET:-dqms-keys}"
 SA_NAME="dqms-runner"
 
@@ -72,12 +74,27 @@ gcloud secrets add-iam-policy-binding "$SECRET" --member "serviceAccount:$SA" \
   --role roles/secretmanager.secretAccessor --project "$PROJECT" --quiet >/dev/null
 
 step "5/6 Building and deploying (the first build takes a few minutes)"
+# Cloud Build builds your uploaded source as the Compute Engine default service account. On many
+# projects that account has no permissions yet, which shows up as "does not have storage.objects.get
+# access to the Google Cloud Storage object". Grant it what a source build needs.
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT" --format 'value(projectNumber)')"
+BUILD_SA="$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+for role in roles/cloudbuild.builds.builder roles/run.builder; do
+  gcloud projects add-iam-policy-binding "$PROJECT" --member "serviceAccount:$BUILD_SA" --role "$role" \
+    --condition=None --quiet >/dev/null 2>&1 || echo "    (could not grant $role to the build account; continuing)"
+done
+# The uploaded source lives in this bucket. Create it now so the build account can read it on the first try.
+SOURCE_BUCKET="run-sources-$PROJECT-$REGION"
+gcloud storage buckets describe "gs://$SOURCE_BUCKET" --project "$PROJECT" >/dev/null 2>&1 \
+  || gcloud storage buckets create "gs://$SOURCE_BUCKET" --location "$REGION" --project "$PROJECT" >/dev/null
+gcloud storage buckets add-iam-policy-binding "gs://$SOURCE_BUCKET" --member "serviceAccount:$BUILD_SA" \
+  --role roles/storage.objectViewer --project "$PROJECT" >/dev/null || true
 # One always-on instance: jobs run in the background after the reply and keep their state in memory.
-gcloud run deploy "$SERVICE" --source . --project "$PROJECT" --region "$REGION" \
+gcloud run deploy "$SERVICE" --source . --project "$PROJECT" --region "$REGION" --quiet \
   --service-account "$SA" --allow-unauthenticated \
   --min-instances 1 --max-instances 1 --no-cpu-throttling --memory 1Gi \
   --set-secrets "/etc/dqms/keys.yaml=$SECRET:latest" \
-  --set-env-vars "DQMS_AUTH_FILE=/etc/dqms/keys.yaml,DQMS_BQ_MAX_BYTES_BILLED=$MAX_BYTES,DQMS_LLM_MODE=off"
+  --set-env-vars "DQMS_AUTH_FILE=/etc/dqms/keys.yaml,DQMS_BQ_MAX_BYTES_BILLED=$MAX_BYTES,DQMS_MAX_DATASETS=$MAX_DATASETS,DQMS_LLM_MODE=off"
 
 URL="$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format 'value(status.url)')"
 

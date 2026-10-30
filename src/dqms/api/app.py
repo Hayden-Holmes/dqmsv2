@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -39,6 +40,7 @@ from dqms.api.schemas import (
     SqlExportRequest,
 )
 from dqms.auth import AuthError, Authenticator, Principal
+from dqms.batch import MAX_BATCH_BYTES, BatchAnalysis, analyze_uploads, read_uploads
 from dqms.connectors.base import BrowseResult, ConnectorError, ConnectorRegistry, DatasetRef
 from dqms.connectors.bigquery import BigQueryConnector
 from dqms.connectors.databricks import DatabricksConnector
@@ -119,13 +121,16 @@ def create_app(
             raise HTTPException(401, str(exc), headers={"WWW-Authenticate": "Bearer"}) from exc
 
     def require_sources(who: Principal, sources: list[str]) -> None:
+        """A dataset must be readable. A *location* (project, dataset, folder) must merely be able to
+        contain something readable; whatever it expands to is filtered to what the key may read."""
         denied = []
         for source in sources:
             try:
-                parse_source(source)
+                connector, uri = connectors.resolve(source)
             except ConnectorError as exc:
                 raise HTTPException(400, str(exc)) from exc
-            if not who.can_read(source):
+            allowed = who.can_browse(source) if connector.is_container(uri) else who.can_read(source)
+            if not allowed:
                 denied.append(source)
         if denied:
             log.warning("source_denied", extra={"principal": who.name, "sources": denied})
@@ -179,6 +184,53 @@ def create_app(
                 rejected.append(DocumentReport(name=name, route="rejected", detail=str(exc)))
         options = AnalyzeOptions(min_confidence=min_confidence, use_llm=use_llm).to_engine()
         return _analyze(service, docs, dataset_name, options, rejected)
+
+    @app.post("/v1/analyze/batch", response_model=BatchAnalysis)
+    def analyze_batch(
+        files: list[UploadFile] = File(...),
+        pairs: str | None = Form(None),
+        truncated: str | None = Form(None),
+        min_confidence: float = Form(0.0),
+        use_llm: bool = Form(True),
+        include_values: bool = Form(False),
+        who: Principal = Depends(principal),
+    ) -> BatchAnalysis:
+        """Data files together with the metadata that describes them, from any platform.
+
+        Files are classified by content (a CSV whose header describes columns is metadata; one whose
+        header *is* the columns is data) and paired by file name: `orders.csv` goes with a table called
+        `orders` in the metadata. `pairs` (JSON {"file.csv": "table"}) overrides that. Data is profiled in
+        memory into aggregates; rows are never stored, logged, or sent to an LLM.
+        """
+        if len(files) > MAX_FILES:
+            raise HTTPException(413, f"at most {MAX_FILES} files per request")
+        try:
+            pair_map = json.loads(pairs) if pairs else {}
+            truncated_set = set(json.loads(truncated)) if truncated else set()
+            if not isinstance(pair_map, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in pair_map.items()) \
+                    or not all(isinstance(t, str) for t in truncated_set):
+                raise ValueError
+        except (ValueError, TypeError):
+            raise HTTPException(400, "'pairs' must be a JSON object of file name -> table name and 'truncated' a JSON list of file names") from None
+        budget, raw = MAX_BATCH_BYTES, []
+        for upload in files:
+            data = upload.file.read(budget + 1)
+            budget -= len(data)
+            if budget < 0:
+                raise HTTPException(413, f"upload exceeds {MAX_BATCH_BYTES // (1024 * 1024)} MB in total (hosted request limit); "
+                                         "send a sample of large files, or point the service at them in cloud storage")
+            raw.append((upload.filename or "upload", data))
+        uploads, rejected = read_uploads(raw)
+        if not uploads:
+            raise HTTPException(422, "no readable files: " + "; ".join(r.detail for r in rejected))
+        log.info("batch_upload", extra={"principal": who.name, "files": len(uploads), "data_files": sum(u.kind == "data" for u in uploads)})
+        options = AnalyzeOptions(min_confidence=min_confidence, use_llm=use_llm).to_engine()
+        try:
+            result = analyze_uploads(service, uploads, options, pair_map, truncated_set, include_values)
+        except NoMetadataError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        result.rejected = rejected
+        return result
 
     @app.post("/v1/analyze/json", response_model=Analysis)
     def analyze_json(req: JsonAnalyzeRequest, who: Principal = Depends(principal)) -> Analysis:

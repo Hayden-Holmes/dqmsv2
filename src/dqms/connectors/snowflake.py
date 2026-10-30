@@ -82,10 +82,15 @@ class SnowflakeConnector:
         wh = self._warehouse(uri.authority, profile.timeout_s)
         try:
             metadata = self._metadata(wh, db, schema, table)
-            stats = profile_table(wh, SNOWFLAKE, (db, schema, table), metadata.columns, profile) if profile.enabled else None
+            stats, warnings = None, []
+            if profile.enabled:
+                try:
+                    stats = profile_table(wh, SNOWFLAKE, (db, schema, table), metadata.columns, profile)
+                except ConnectorError as exc:
+                    warnings.append(f"profiling failed, so only schema-based rules were generated: {exc}")
         finally:
             wh.close()
-        return Snapshot(metadata, stats)
+        return Snapshot(metadata, stats, warnings)
 
     def _metadata(self, wh: DbApiWarehouse, db: str, schema: str, table: str) -> Metadata:
         info = f'"{db}".INFORMATION_SCHEMA'
