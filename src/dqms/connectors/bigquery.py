@@ -2,7 +2,9 @@
 
 Metadata comes from the table resource: schema, modes, descriptions, labels,
 declared PK/FK constraints, and policy tags (treated as "restricted" so those
-columns' values are never sent to an LLM). Profiling uses the shared aggregate
+columns' values are never sent to an LLM). Knowledge Catalog aspects (stewardship,
+column semantics, stated business rules) are read too; a catalog that cannot be
+read costs a warning, never the table. DQMS_CATALOG=off turns that off. Profiling uses the shared aggregate
 profiler, with a cap on bytes billed so a runaway table fails instead of costing.
 """
 
@@ -11,19 +13,26 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from dqms.catalog import CatalogError, CatalogReader, apply_aspects, fetch_entry_aspects
 from dqms.connectors.base import BrowseResult, ConnectorError, DatasetRef, ExplorerNode, ProfileOptions, Snapshot
 from dqms.connectors.sqlprofile import BIGQUERY, profile_table, safe_part
 from dqms.connectors.uri import SourceURI
 from dqms.models import Column, ForeignKey, Metadata
 
 DEFAULT_MAX_BYTES_BILLED = 100 * 2**30  # 100 GiB
+_AUTO = object()
 
 
 class BigQueryConnector:
     schemes = ("bigquery",)
 
-    def __init__(self, client_factory=None, max_bytes_billed: int | None = None):
+    def __init__(self, client_factory=None, max_bytes_billed: int | None = None, catalog: CatalogReader | None | object = _AUTO):
         self._client_factory = client_factory
+        # An injected client means a test double: only the real client gets the real catalog reader.
+        if catalog is _AUTO:
+            off = os.getenv("DQMS_CATALOG", "").lower() in {"off", "0", "false", "no"}
+            catalog = None if off or client_factory is not None else fetch_entry_aspects
+        self._catalog: CatalogReader | None = catalog  # type: ignore[assignment]
         self._max_bytes = (
             int(os.getenv("DQMS_BQ_MAX_BYTES_BILLED", DEFAULT_MAX_BYTES_BILLED))
             if max_bytes_billed is None
@@ -99,6 +108,12 @@ class BigQueryConnector:
         self._apply_constraints(metadata, getattr(bq_table, "table_constraints", None))
 
         stats, warnings = None, []
+        if self._catalog is not None:
+            try:
+                aspects = self._catalog(project, getattr(bq_table, "location", None) or "us", dataset, table)
+                warnings += ["Knowledge Catalog: " + note for note in apply_aspects(metadata, aspects)]
+            except CatalogError as exc:
+                warnings.append(f"Knowledge Catalog aspects were not read, so catalog-based rules are missing: {exc}")
         if profile.enabled:
             try:
                 stats = profile_table(

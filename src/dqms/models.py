@@ -32,6 +32,8 @@ class Column(BaseModel):
     semantic_type: str | None = None  # slug, e.g. "email_address"
     classifications: list[str] = Field(default_factory=list)
     allowed_values: list[str] | None = None
+    rules: list[str] = Field(default_factory=list)  # stated business rules in prose, e.g. from catalog aspects
+    term: str | None = None  # business glossary term the column implements
 
     @model_validator(mode="after")
     def _length_from_type(self) -> "Column":

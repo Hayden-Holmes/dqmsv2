@@ -39,13 +39,13 @@ step() { printf '\n==> %s\n' "$*"; }
 
 step "1/6 Enabling the Google Cloud services this needs (first time takes a minute)"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com \
-  artifactregistry.googleapis.com --project "$PROJECT"
+  artifactregistry.googleapis.com dataplex.googleapis.com --project "$PROJECT"
 
-step "2/6 Creating a service account that can only read BigQuery"
+step "2/6 Creating a service account that can only read BigQuery and its catalog"
 gcloud iam service-accounts describe "$SA" --project "$PROJECT" >/dev/null 2>&1 \
   || gcloud iam service-accounts create "$SA_NAME" --display-name "dqms service" --project "$PROJECT"
 for p in $DATA_PROJECTS; do
-  for role in roles/bigquery.dataViewer roles/bigquery.jobUser; do
+  for role in roles/bigquery.dataViewer roles/bigquery.jobUser roles/dataplex.catalogViewer; do
     gcloud projects add-iam-policy-binding "$p" --member "serviceAccount:$SA" --role "$role" \
       --condition=None --quiet >/dev/null
   done

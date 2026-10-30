@@ -64,3 +64,8 @@ def test_logs_carry_the_severity_field_cloud_logging_reads():
 
     record = logging.LogRecord("dqms", logging.WARNING, "f", 1, "careful", (), None)
     assert json.loads(JsonFormatter().format(record))["severity"] == "WARNING"
+
+
+def test_script_enables_dataplex_and_grants_catalog_read_access():
+    text = SCRIPT.read_text()
+    assert "dataplex.googleapis.com" in text and "roles/dataplex.catalogViewer" in text

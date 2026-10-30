@@ -91,7 +91,7 @@ def _build(rule: Rule, metadata: Metadata, d: Dialect, table: str) -> str | None
             if "min" in p:
                 clauses.append(f"{c} {'<=' if p.get('exclusive_min') else '<'} {_num(p['min'])}")
             if "max" in p:
-                clauses.append(f"{c} > {_num(p['max'])}")
+                clauses.append(f"{c} {'>=' if p.get('exclusive_max') else '>'} {_num(p['max'])}")
             return count(f"{c} IS NOT NULL AND ({' OR '.join(clauses)})")
         case RuleType.NOT_FUTURE:
             col = metadata.column(rule.columns[0])

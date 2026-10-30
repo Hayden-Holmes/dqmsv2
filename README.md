@@ -125,6 +125,35 @@ curl -X POST "$URL/v1/analyze/batch" -H "X-API-Key: $KEY" -F files=@orders.csv -
 - **Privacy.** Data is read into memory, summarized (nulls, distinct, min/max, lengths), and discarded; rows are not stored, logged, returned, or sent to an LLM. Value lists are returned only if you ask (`include_values`), and are never sent to a model. Tests plant canary values in uploaded data and assert none appear in a prompt, a response or a log line.
 - **Size.** The hosted request limit is about 32 MB, so the batch endpoint accepts 30 MB in total. The page sends large CSV/TSV/JSONL files as a sample of their first rows and the profile is marked `sampled` (so it claims no uniqueness or true extremes). Parquet cannot be cut, so a Parquet file too large for the limit must be pointed at in cloud storage or sent as a sample.
 
+## Knowledge Catalog aspects (BigQuery)
+
+For BigQuery tables the service also reads the table's Knowledge Catalog (Dataplex) aspects and uses them as
+metadata. Aspect types are your own, so fields are matched by meaning rather than one fixed schema:
+
+| Aspect field (any of these names) | Used as |
+|---|---|
+| `data_steward` / `steward`, `owner_team` / `owner`, `data_domain` / `domain` | table steward, owner, domain |
+| other table-level fields (`criticality`, `contains_pii`, ...) | tags |
+| `semantic_type` | the column's semantic type (drives email, not-future, identifier, ... rules) |
+| `classification` / `sensitivity`, `contains_pii` | classifications (sensitive columns never have values sent to an LLM) |
+| `business_rule` / `rule` / `validation_rule` | stated rules, parsed into rules (documented tier) |
+| `valid_values` / `allowed_values` | allowed-values rule |
+| `glossary_term` | the glossary term the column implements |
+
+Stated rules are plain sentences; these phrasings are understood: *"Must be greater than 0"*, *"at least 1"*,
+*"at most 99"*, *"zero or greater"*, *"Cannot be in the future"*, *"Must not be before `order_ts`"*,
+*"Must not exceed `unit_price`"*, *"Must be a valid email address"*, *"Unique"*, *"Required"*. A sentence that is
+not recognised produces no rule, and a column name in it must be a real column of the same table. Aspect fields
+that match nothing are listed as a finding, never guessed at.
+
+The service account needs `roles/dataplex.catalogViewer` and the Dataplex API enabled (`deploy/cloudrun.sh` does
+both). If the catalog cannot be read, the table is still analyzed and a finding says why. `DQMS_CATALOG=off`
+disables catalog reads. Only aspects are read: no table data, and glossary term *definitions* are not fetched.
+
+Related behaviour: observed ranges are dropped where the data breaks a stated or inferred range (they would only
+copy the bad values), a looser range is dropped when a tighter stated one exists, and inferred ranges and
+not-future rules are checked against the profile too.
+
 ## Demo data with a Knowledge Catalog (BigQuery)
 
 `deploy/seed_catalog_demo.py` builds a small BigQuery dataset plus the catalog around it, so you can see

@@ -15,7 +15,7 @@ from dqms.rules.declared import DeclaredGenerator
 from dqms.rules.documented import DocumentedGenerator
 from dqms.rules.llm import LLMRuleEnricher
 from dqms.rules.observed import ObservedGenerator
-from dqms.rules.post import assign_severity, mark_enforced, merge, reconcile
+from dqms.rules.post import assign_severity, drop_blessed_violations, drop_subsumed_ranges, mark_enforced, merge, reconcile
 from dqms.rules.semantic import SemanticGenerator
 
 
@@ -62,7 +62,7 @@ class RuleEngine:
             except Exception as exc:  # enrichment is additive; never lose the deterministic result
                 findings.append(Finding(kind="llm_enrichment_failed", message=str(exc)))
 
-        merged = merge(rules)
+        merged = drop_subsumed_ranges(drop_blessed_violations(ctx, merge(rules)))
         mark_enforced(merged, metadata.existing_validations)
         assign_severity(merged)
         findings += reconcile(ctx, merged)

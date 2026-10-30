@@ -251,7 +251,7 @@ def generate(now: datetime | None = None, seed: int = 7) -> Generated:
     for i in range(1, 601):
         placed = now - timedelta(days=rng.randint(1, 365), seconds=rng.randint(0, 86399))
         status = rng.choices(["placed", "paid", "shipped", "delivered", "cancelled", "refunded"], [5, 10, 15, 55, 10, 5])[0]
-        shipped = placed + timedelta(hours=rng.randint(4, 120)) if status in ("shipped", "delivered") else None
+        shipped = min(placed + timedelta(hours=rng.randint(4, 120)), now - timedelta(minutes=1)) if status in ("shipped", "delivered") else None
         total = Decimal("0")
         for line in range(1, rng.randint(1, 4) + 1):
             p, qty, disc = rng.choice(products), rng.randint(1, 5), rng.choice([0, 0, 0, 0.05, 0.1, 0.2])

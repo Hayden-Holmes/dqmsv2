@@ -39,10 +39,14 @@ def _birth(ctx, col, tier, conf, ev):
 
 
 def _identifier(ctx, col, tier, conf, ev):
-    return [
-        rule(RuleType.NOT_NULL, col.name, tier, conf, f"{col.name} identifies records and must be present.", ev),
-        rule(RuleType.UNIQUE, col.name, tier, conf, f"{col.name} identifies records and must be unique.", ev),
-    ]
+    rules = [rule(RuleType.NOT_NULL, col.name, tier, conf, f"{col.name} identifies records and must be present.", ev)]
+    meta, lowered = ctx.metadata, col.name.lower()
+    # A reference to another table's key, or one part of a composite key, repeats by design.
+    repeats = any(fk.column.lower() == lowered for fk in meta.foreign_keys) or (
+        len(meta.primary_keys) > 1 and lowered in {k.lower() for k in meta.primary_keys})
+    if not repeats:
+        rules.append(rule(RuleType.UNIQUE, col.name, tier, conf, f"{col.name} identifies records and must be unique.", ev))
+    return rules
 
 
 def _non_negative(label: str):
