@@ -125,6 +125,27 @@ curl -X POST "$URL/v1/analyze/batch" -H "X-API-Key: $KEY" -F files=@orders.csv -
 - **Privacy.** Data is read into memory, summarized (nulls, distinct, min/max, lengths), and discarded; rows are not stored, logged, returned, or sent to an LLM. Value lists are returned only if you ask (`include_values`), and are never sent to a model. Tests plant canary values in uploaded data and assert none appear in a prompt, a response or a log line.
 - **Size.** The hosted request limit is about 32 MB, so the batch endpoint accepts 30 MB in total. The page sends large CSV/TSV/JSONL files as a sample of their first rows and the profile is marked `sampled` (so it claims no uniqueness or true extremes). Parquet cannot be cut, so a Parquet file too large for the limit must be pointed at in cloud storage or sent as a sample.
 
+## Demo data with a Knowledge Catalog (BigQuery)
+
+`deploy/seed_catalog_demo.py` builds a small BigQuery dataset plus the catalog around it, so you can see
+how metadata-driven rules look when the metadata is rich. Synthetic data only.
+
+```bash
+pip install google-cloud-bigquery
+gcloud services enable dataplex.googleapis.com
+python deploy/seed_catalog_demo.py --project MY_PROJECT --dry-run   # show the plan
+python deploy/seed_catalog_demo.py --project MY_PROJECT             # build it
+python deploy/seed_catalog_demo.py --project MY_PROJECT --teardown  # remove it
+```
+
+It creates four related tables (`customers`, `products`, `orders`, `order_items`) with descriptions, labels,
+primary/foreign keys and an array column; two aspect types (table governance, column semantics) attached to every
+table and column; and a business glossary. `--policy-tags` adds policy tags on confidential columns. It also plants
+known data problems (nulls, malformed emails, orphan keys, future dates, ...) and lists them at the end and in
+`dqms_demo_manifest.json`, so you can check that the generated rules catch them.
+The catalog calls use the Dataplex REST API directly; each catalog step reports its own failure and the data is
+still built.
+
 ## Controlling scope
 
 **Tables are specified on the call.** Nothing is read or profiled unless it (or a container you name) is in `sources`; there is no ambient or default scope, and the UI's explorer submits exactly the tables you picked. Profiling is **off by default**, and a container (`bigquery://project`, `gs://bucket/`) is resolved to a concrete dataset list *first*:
