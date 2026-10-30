@@ -1,0 +1,399 @@
+{
+  "schema_version": "1",
+  "dataset": "order_items",
+  "fingerprint": "5ecc3547404fe6ac",
+  "rules": [
+    {
+      "type": "composite_unique",
+      "columns": [
+        "order_id",
+        "line_no"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "The combination of primary key columns must be unique.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.order_id+line_no.composite_unique"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "order_id"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_id is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.order_id.datatype"
+    },
+    {
+      "type": "foreign_key",
+      "columns": [
+        "order_id"
+      ],
+      "params": {
+        "references_table": "orders",
+        "references_column": "order_id"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_id references orders.order_id.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.order_id.foreign_key"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "order_id"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_id is part of the primary key.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.order_id.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "line_no"
+      ],
+      "params": {
+        "type": "INTEGER",
+        "family": "numeric"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "line_no is declared as INTEGER.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.line_no.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "line_no"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "line_no is part of the primary key.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.line_no.not_null"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "line_no"
+      ],
+      "params": {
+        "min": 1,
+        "max": 4
+      },
+      "tier": "observed",
+      "confidence": 0.4,
+      "severity": "info",
+      "rationale": "Observed range of line_no is 1..4.",
+      "evidence": [
+        "profile: min=1, max=4 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.line_no.range.max_min"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "sku"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "sku is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.sku.datatype"
+    },
+    {
+      "type": "foreign_key",
+      "columns": [
+        "sku"
+      ],
+      "params": {
+        "references_table": "products",
+        "references_column": "sku"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "sku references products.sku.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.sku.foreign_key"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "sku"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "sku is declared NOT NULL.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.sku.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "quantity"
+      ],
+      "params": {
+        "type": "INTEGER",
+        "family": "numeric"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "quantity is declared as INTEGER.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.quantity.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "quantity"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "quantity is declared NOT NULL.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.quantity.not_null"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "quantity"
+      ],
+      "params": {
+        "min": -2,
+        "max": 5
+      },
+      "tier": "observed",
+      "confidence": 0.4,
+      "severity": "info",
+      "rationale": "Observed range of quantity is -2..5.",
+      "evidence": [
+        "profile: min=-2, max=5 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.quantity.range.max_min"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "quantity"
+      ],
+      "params": {
+        "min": 0
+      },
+      "tier": "inferred",
+      "confidence": 0.55,
+      "severity": "warning",
+      "rationale": "quantity is a count and should not be negative.",
+      "evidence": [
+        "column name: quantity"
+      ],
+      "already_enforced": false,
+      "id": "order_items.quantity.range.min"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "unit_price"
+      ],
+      "params": {
+        "type": "NUMERIC",
+        "family": "numeric"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "unit_price is declared as NUMERIC.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.unit_price.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "unit_price"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in unit_price.",
+      "evidence": [
+        "profile: null_rate=0 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.unit_price.not_null"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "unit_price"
+      ],
+      "params": {
+        "min": 0,
+        "max": 293.47
+      },
+      "tier": "observed",
+      "confidence": 0.4,
+      "severity": "info",
+      "rationale": "Observed range of unit_price is 0.0..293.47.",
+      "evidence": [
+        "profile: min=0.0, max=293.47 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.unit_price.range.max_min"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "unit_price"
+      ],
+      "params": {
+        "min": 0
+      },
+      "tier": "inferred",
+      "confidence": 0.55,
+      "severity": "warning",
+      "rationale": "unit_price is a monetary amount and should not be negative.",
+      "evidence": [
+        "column name: unit_price"
+      ],
+      "already_enforced": false,
+      "id": "order_items.unit_price.range.min"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "discount_pct"
+      ],
+      "params": {
+        "type": "FLOAT",
+        "family": "numeric"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "discount_pct is declared as FLOAT.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "order_items.discount_pct.datatype"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "discount_pct"
+      ],
+      "params": {
+        "min": 0,
+        "max": 1
+      },
+      "tier": "documented",
+      "confidence": 0.95,
+      "severity": "error",
+      "rationale": "The description of discount_pct states its bounds.",
+      "evidence": [
+        "description: 'Discount applied, as a fraction between 0 and 1. Glossary: Discount.'",
+        "profile: min=0.0, max=1.5 (n=1490)",
+        "column name: discount_pct"
+      ],
+      "already_enforced": false,
+      "id": "order_items.discount_pct.range.max_min"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "discount_pct"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in discount_pct.",
+      "evidence": [
+        "profile: null_rate=0 (n=1490)"
+      ],
+      "already_enforced": false,
+      "id": "order_items.discount_pct.not_null"
+    }
+  ],
+  "findings": [
+    {
+      "column": "discount_pct",
+      "kind": "profile_violates_rule",
+      "message": "discount_pct maximum 1.5 exceeds the allowed 1."
+    }
+  ],
+  "unrecognized_documents": 0,
+  "llm_used": false
+}

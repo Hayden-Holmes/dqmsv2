@@ -1,0 +1,405 @@
+{
+  "schema_version": "1",
+  "dataset": "customers",
+  "fingerprint": "b19c8a8467b7ad88",
+  "rules": [
+    {
+      "type": "datatype",
+      "columns": [
+        "customer_id"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "customer_id is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.customer_id.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "customer_id"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "customer_id is part of the primary key.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=201)"
+      ],
+      "already_enforced": false,
+      "id": "customers.customer_id.not_null"
+    },
+    {
+      "type": "unique",
+      "columns": [
+        "customer_id"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "customer_id is the primary key.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.customer_id.unique"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "email"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "email is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.email.datatype"
+    },
+    {
+      "type": "regex",
+      "columns": [
+        "email"
+      ],
+      "params": {
+        "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+        "format": "email"
+      },
+      "tier": "inferred",
+      "confidence": 0.55,
+      "severity": "warning",
+      "rationale": "email holds email addresses.",
+      "evidence": [
+        "column name: email"
+      ],
+      "already_enforced": false,
+      "id": "customers.email.regex"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "full_name"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "full_name is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.full_name.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "full_name"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in full_name.",
+      "evidence": [
+        "profile: null_rate=0 (n=201)"
+      ],
+      "already_enforced": false,
+      "id": "customers.full_name.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "country_code"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "country_code is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.country_code.datatype"
+    },
+    {
+      "type": "accepted_values",
+      "columns": [
+        "country_code"
+      ],
+      "params": {
+        "values": [
+          "US",
+          "CA",
+          "GB",
+          "DE",
+          "FR",
+          "IN",
+          "AU"
+        ]
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "The description of country_code lists its allowed values.",
+      "evidence": [
+        "description: 'ISO 3166-1 alpha-2 country code. Glossary: Country Code. Allowed values: US,CA,GB,DE,FR,IN,AU.'"
+      ],
+      "already_enforced": false,
+      "id": "customers.country_code.accepted_values"
+    },
+    {
+      "type": "accepted_values",
+      "columns": [
+        "country_code"
+      ],
+      "params": {
+        "reference_set": "iso_3166_1_alpha_2"
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "country_code is documented as a standard code list (iso_3166_1_alpha_2).",
+      "evidence": [
+        "description: 'ISO 3166-1 alpha-2 country code. Glossary: Country Code. Allowed values: US,CA,GB,DE,FR,IN,AU.'"
+      ],
+      "already_enforced": false,
+      "id": "customers.country_code.accepted_values"
+    },
+    {
+      "type": "length",
+      "columns": [
+        "country_code"
+      ],
+      "params": {
+        "exact": 2
+      },
+      "tier": "documented",
+      "confidence": 0.95,
+      "severity": "error",
+      "rationale": "iso_3166_1_alpha_2 codes are exactly 2 characters.",
+      "evidence": [
+        "description: 'ISO 3166-1 alpha-2 country code. Glossary: Country Code. Allowed values: US,CA,GB,DE,FR,IN,AU.'",
+        "column name: country_code"
+      ],
+      "already_enforced": false,
+      "id": "customers.country_code.length.exact"
+    },
+    {
+      "type": "regex",
+      "columns": [
+        "country_code"
+      ],
+      "params": {
+        "pattern": "^[A-Z]{2}$"
+      },
+      "tier": "documented",
+      "confidence": 0.95,
+      "severity": "error",
+      "rationale": "country_code must match the iso_3166_1_alpha_2 code format.",
+      "evidence": [
+        "description: 'ISO 3166-1 alpha-2 country code. Glossary: Country Code. Allowed values: US,CA,GB,DE,FR,IN,AU.'",
+        "column name: country_code"
+      ],
+      "already_enforced": false,
+      "id": "customers.country_code.regex"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "country_code"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in country_code.",
+      "evidence": [
+        "profile: null_rate=0 (n=201)"
+      ],
+      "already_enforced": false,
+      "id": "customers.country_code.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "signup_date"
+      ],
+      "params": {
+        "type": "DATE",
+        "family": "date"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "signup_date is declared as DATE.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.signup_date.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "signup_date"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in signup_date.",
+      "evidence": [
+        "profile: null_rate=0 (n=201)"
+      ],
+      "already_enforced": false,
+      "id": "customers.signup_date.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "loyalty_tier"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "loyalty_tier is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.loyalty_tier.datatype"
+    },
+    {
+      "type": "accepted_values",
+      "columns": [
+        "loyalty_tier"
+      ],
+      "params": {
+        "values": [
+          "bronze",
+          "silver",
+          "gold",
+          "platinum"
+        ]
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "The description of loyalty_tier lists its allowed values.",
+      "evidence": [
+        "description: 'Loyalty programme tier. Glossary: Loyalty Tier. Allowed values: bronze,silver,gold,platinum.'"
+      ],
+      "already_enforced": false,
+      "id": "customers.loyalty_tier.accepted_values"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "loyalty_tier"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in loyalty_tier.",
+      "evidence": [
+        "profile: null_rate=0 (n=201)"
+      ],
+      "already_enforced": false,
+      "id": "customers.loyalty_tier.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "marketing_opt_in"
+      ],
+      "params": {
+        "type": "BOOLEAN",
+        "family": "boolean"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "marketing_opt_in is declared as BOOLEAN.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.marketing_opt_in.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "marketing_opt_in"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in marketing_opt_in.",
+      "evidence": [
+        "profile: null_rate=0 (n=201)"
+      ],
+      "already_enforced": false,
+      "id": "customers.marketing_opt_in.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "tags"
+      ],
+      "params": {
+        "type": "ARRAY",
+        "family": "unknown"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "tags is declared as ARRAY.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "customers.tags.datatype"
+    }
+  ],
+  "findings": [
+    {
+      "column": "customer_id",
+      "kind": "profile_violates_rule",
+      "message": "customer_id must be unique but the distinct rate is 0.9950."
+    }
+  ],
+  "unrecognized_documents": 0,
+  "llm_used": false
+}

@@ -1,0 +1,415 @@
+{
+  "schema_version": "1",
+  "dataset": "orders",
+  "fingerprint": "b77f7f8e00c62de9",
+  "rules": [
+    {
+      "type": "datatype",
+      "columns": [
+        "order_id"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_id is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_id.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "order_id"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_id is part of the primary key.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_id.not_null"
+    },
+    {
+      "type": "unique",
+      "columns": [
+        "order_id"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_id is the primary key.",
+      "evidence": [
+        "schema",
+        "profile: distinct_rate=1 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_id.unique"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "customer_id"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "customer_id is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.customer_id.datatype"
+    },
+    {
+      "type": "foreign_key",
+      "columns": [
+        "customer_id"
+      ],
+      "params": {
+        "references_table": "customers",
+        "references_column": "customer_id"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "customer_id references customers.customer_id.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.customer_id.foreign_key"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "customer_id"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "customer_id is declared NOT NULL.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.customer_id.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "order_ts"
+      ],
+      "params": {
+        "type": "TIMESTAMP",
+        "family": "timestamp"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_ts is declared as TIMESTAMP.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_ts.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "order_ts"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_ts is declared NOT NULL.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_ts.not_null"
+    },
+    {
+      "type": "unique",
+      "columns": [
+        "order_ts"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "All observed values of order_ts are distinct.",
+      "evidence": [
+        "profile: distinct_rate=1 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_ts.unique"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "status"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "status is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.status.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "status"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "status is declared NOT NULL.",
+      "evidence": [
+        "schema",
+        "profile: null_rate=0 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.status.not_null"
+    },
+    {
+      "type": "accepted_values",
+      "columns": [
+        "status"
+      ],
+      "params": {
+        "values": [
+          "placed",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled",
+          "refunded"
+        ]
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "The description of status lists its allowed values.",
+      "evidence": [
+        "description: 'Fulfilment status. Glossary: Order Status. Allowed values: placed,paid,shipped,delivered,cancelled,refunded.'"
+      ],
+      "already_enforced": false,
+      "id": "orders.status.accepted_values"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "currency"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "currency is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.currency.datatype"
+    },
+    {
+      "type": "accepted_values",
+      "columns": [
+        "currency"
+      ],
+      "params": {
+        "values": [
+          "USD",
+          "EUR",
+          "GBP"
+        ]
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "The description of currency lists its allowed values.",
+      "evidence": [
+        "description: 'ISO 4217 currency code. Allowed values: USD,EUR,GBP.'"
+      ],
+      "already_enforced": false,
+      "id": "orders.currency.accepted_values"
+    },
+    {
+      "type": "accepted_values",
+      "columns": [
+        "currency"
+      ],
+      "params": {
+        "reference_set": "iso_4217"
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "currency is documented as a standard code list (iso_4217).",
+      "evidence": [
+        "description: 'ISO 4217 currency code. Allowed values: USD,EUR,GBP.'"
+      ],
+      "already_enforced": false,
+      "id": "orders.currency.accepted_values"
+    },
+    {
+      "type": "length",
+      "columns": [
+        "currency"
+      ],
+      "params": {
+        "exact": 3
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "iso_4217 codes are exactly 3 characters.",
+      "evidence": [
+        "description: 'ISO 4217 currency code. Allowed values: USD,EUR,GBP.'"
+      ],
+      "already_enforced": false,
+      "id": "orders.currency.length.exact"
+    },
+    {
+      "type": "regex",
+      "columns": [
+        "currency"
+      ],
+      "params": {
+        "pattern": "^[A-Z]{3}$"
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "currency must match the iso_4217 code format.",
+      "evidence": [
+        "description: 'ISO 4217 currency code. Allowed values: USD,EUR,GBP.'"
+      ],
+      "already_enforced": false,
+      "id": "orders.currency.regex"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "currency"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in currency.",
+      "evidence": [
+        "profile: null_rate=0 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.currency.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "order_total"
+      ],
+      "params": {
+        "type": "NUMERIC",
+        "family": "numeric"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "order_total is declared as NUMERIC.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_total.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "order_total"
+      ],
+      "params": {},
+      "tier": "observed",
+      "confidence": 0.5,
+      "severity": "info",
+      "rationale": "No nulls observed in order_total.",
+      "evidence": [
+        "profile: null_rate=0 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_total.not_null"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "order_total"
+      ],
+      "params": {
+        "min": -15,
+        "max": 3432.96
+      },
+      "tier": "observed",
+      "confidence": 0.4,
+      "severity": "info",
+      "rationale": "Observed range of order_total is -15.0..3432.96.",
+      "evidence": [
+        "profile: min=-15.0, max=3432.96 (n=600)"
+      ],
+      "already_enforced": false,
+      "id": "orders.order_total.range.max_min"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "shipped_ts"
+      ],
+      "params": {
+        "type": "TIMESTAMP",
+        "family": "timestamp"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "shipped_ts is declared as TIMESTAMP.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "orders.shipped_ts.datatype"
+    }
+  ],
+  "findings": [],
+  "unrecognized_documents": 0,
+  "llm_used": false
+}

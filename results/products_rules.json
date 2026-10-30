@@ -1,0 +1,232 @@
+{
+  "schema_version": "1",
+  "dataset": "products",
+  "fingerprint": "4f03019579d121f2",
+  "rules": [
+    {
+      "type": "datatype",
+      "columns": [
+        "sku"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "sku is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.sku.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "sku"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "sku is part of the primary key.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.sku.not_null"
+    },
+    {
+      "type": "unique",
+      "columns": [
+        "sku"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "sku is the primary key.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.sku.unique"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "product_name"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "product_name is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.product_name.datatype"
+    },
+    {
+      "type": "not_null",
+      "columns": [
+        "product_name"
+      ],
+      "params": {},
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "product_name is declared NOT NULL.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.product_name.not_null"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "category"
+      ],
+      "params": {
+        "type": "STRING",
+        "family": "string"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "category is declared as STRING.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.category.datatype"
+    },
+    {
+      "type": "accepted_values",
+      "columns": [
+        "category"
+      ],
+      "params": {
+        "values": [
+          "apparel",
+          "electronics",
+          "home",
+          "outdoor",
+          "toys"
+        ]
+      },
+      "tier": "documented",
+      "confidence": 0.9,
+      "severity": "error",
+      "rationale": "The description of category lists its allowed values.",
+      "evidence": [
+        "description: 'Merchandising category. Allowed values: apparel,electronics,home,outdoor,toys.'"
+      ],
+      "already_enforced": false,
+      "id": "products.category.accepted_values"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "unit_price"
+      ],
+      "params": {
+        "type": "NUMERIC",
+        "family": "numeric"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "unit_price is declared as NUMERIC.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.unit_price.datatype"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "unit_price"
+      ],
+      "params": {
+        "min": 0
+      },
+      "tier": "inferred",
+      "confidence": 0.55,
+      "severity": "warning",
+      "rationale": "unit_price is a monetary amount and should not be negative.",
+      "evidence": [
+        "column name: unit_price"
+      ],
+      "already_enforced": false,
+      "id": "products.unit_price.range.min"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "unit_cost"
+      ],
+      "params": {
+        "type": "NUMERIC",
+        "family": "numeric"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "unit_cost is declared as NUMERIC.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.unit_cost.datatype"
+    },
+    {
+      "type": "range",
+      "columns": [
+        "unit_cost"
+      ],
+      "params": {
+        "min": 0
+      },
+      "tier": "inferred",
+      "confidence": 0.55,
+      "severity": "warning",
+      "rationale": "unit_cost is a monetary amount and should not be negative.",
+      "evidence": [
+        "column name: unit_cost"
+      ],
+      "already_enforced": false,
+      "id": "products.unit_cost.range.min"
+    },
+    {
+      "type": "datatype",
+      "columns": [
+        "active"
+      ],
+      "params": {
+        "type": "BOOLEAN",
+        "family": "boolean"
+      },
+      "tier": "declared",
+      "confidence": 1,
+      "severity": "error",
+      "rationale": "active is declared as BOOLEAN.",
+      "evidence": [
+        "schema"
+      ],
+      "already_enforced": false,
+      "id": "products.active.datatype"
+    }
+  ],
+  "findings": [],
+  "unrecognized_documents": 0,
+  "llm_used": false
+}
