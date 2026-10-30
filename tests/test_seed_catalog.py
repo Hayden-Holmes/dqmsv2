@@ -149,3 +149,10 @@ def test_dry_run_needs_no_google_libraries_or_credentials(capsys):
     assert seed.main(["--project", "p", "--dry-run"]) == 0
     out = capsys.readouterr().out
     assert "BigQuery dataset p.dqms_demo" in out and "Known data problems" in out
+
+
+def test_field_types_are_ones_the_dataplex_api_accepts():
+    # The API rejects 'integer'/'boolean'; its names are int and bool.
+    accepted = {"string", "int", "bool", "double", "datetime", "enum"}
+    for _, ftype, *_ in seed.GOVERNANCE_FIELDS + seed.SEMANTICS_FIELDS:
+        assert ftype in accepted, ftype
