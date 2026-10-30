@@ -156,3 +156,40 @@ def test_field_types_are_ones_the_dataplex_api_accepts():
     accepted = {"string", "int", "bool", "double", "datetime", "enum"}
     for _, ftype, *_ in seed.GOVERNANCE_FIELDS + seed.SEMANTICS_FIELDS:
         assert ftype in accepted, ftype
+
+
+class RecordingApi:
+    """Stands in for Dataplex: records calls, and returns attached aspects on read-back only if asked to."""
+
+    def __init__(self, read_back=True, patch_status=200):
+        self.calls, self.read_back, self.patch_status, self.stored = [], read_back, patch_status, {}
+
+    def call(self, method, url, **kw):
+        self.calls.append((method, url, kw))
+        if method == "PATCH":
+            self.stored = kw["json"]["aspects"] if self.patch_status < 400 else {}
+            return self.patch_status, {} if self.patch_status < 400 else {"error": {"message": "denied"}}
+        return 200, {"aspects": self.stored if self.read_back else {}}
+
+
+def test_aspect_keys_are_sent_as_a_repeated_parameter_not_one_comma_joined_value():
+    api, failures = RecordingApi(), seed.Failures()
+    seed.attach_aspects(api, "p", "d", "US", failures)
+    patches = [c for c in api.calls if c[0] == "PATCH"]
+    assert len(patches) == len(seed.TABLES) and failures.items == []
+    for _, url, kw in patches:
+        keys = [v for k, v in kw["params"] if k == "aspectKeys"]
+        assert keys == list(kw["json"]["aspects"]) and not any("," in k for k in keys)
+        assert "aspectKeys" not in url
+
+
+def test_attach_reads_back_and_fails_loudly_when_nothing_stuck(capsys):
+    failures = seed.Failures()
+    seed.attach_aspects(RecordingApi(read_back=False), "p", "d", "US", failures)
+    assert len(failures.items) == len(seed.TABLES) and "only 0 of" in failures.items[0]
+
+
+def test_rejected_update_is_reported_without_a_readback():
+    api, failures = RecordingApi(patch_status=403), seed.Failures()
+    seed.attach_aspects(api, "p", "d", "US", failures)
+    assert len(failures.items) == len(seed.TABLES) and not any(c[0] == "GET" for c in api.calls)

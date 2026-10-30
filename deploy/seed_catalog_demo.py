@@ -502,17 +502,30 @@ def attach_aspects(api: Dataplex, project: str, dataset: str, location: str, fai
     for table in TABLES:
         aspects = table_aspects(project, location, table)
         name = entry_name(project, location, dataset, table.name)
-        url = f"{DATAPLEX}/{name}?updateMask=aspects&aspectKeys=" + ",".join(aspects)
+        # aspectKeys is a repeated parameter: one value per key, not a comma-separated list.
+        params = [("updateMask", "aspects")] + [("aspectKeys", key) for key in aspects]
         # BigQuery metadata reaches the catalog a little after the table is created.
         for attempt in range(12):
-            status, body = api.call("PATCH", url, json={"aspects": aspects})
+            status, body = api.call("PATCH", f"{DATAPLEX}/{name}", params=params, json={"aspects": aspects})
             if status != 404:
                 break
             time.sleep(10)
         if status >= 400:
             failures.add(f"aspects on {table.name}", _api_error(status, body))
+            continue
+        found = visible_aspects(api, project, dataset, location, table.name)
+        if found == len(aspects):
+            print(f"  + {len(aspects)} aspects on {table.name} (verified)")
         else:
-            print(f"  + {len(aspects)} aspects on {table.name}")
+            failures.add(f"aspects on {table.name}", f"the update was accepted but only {found} of {len(aspects)} aspects are visible")
+
+
+def visible_aspects(api: Dataplex, project: str, dataset: str, location: str, table: str) -> int:
+    """How many of our aspects the catalog returns for the table (reads them back, so success is not assumed)."""
+    root = f"projects/{project}/locations/{dataplex_location(location)}"
+    params = [("view", "CUSTOM")] + [("aspectTypes", f"{root}/aspectTypes/{a}") for a in (GOVERNANCE, SEMANTICS)]
+    status, body = api.call("GET", f"{DATAPLEX}/{entry_name(project, location, dataset, table)}", params=params)
+    return len(body.get("aspects", {})) if status == 200 else 0
 
 
 def build_glossary(api: Dataplex, project: str, location: str, failures: Failures) -> None:
